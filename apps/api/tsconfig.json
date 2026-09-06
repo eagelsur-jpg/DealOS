@@ -1,0 +1,19 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "outDir": "dist",
+    "rootDir": "src",
+    "tsBuildInfoFile": "dist/.tsbuildinfo",
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./src/*"],
+      "@dealos/ai": ["../../packages/ai/src"],
+      "@dealos/config": ["../../packages/config/src"],
+      "@dealos/database": ["../../packages/database/src"],
+      "@dealos/types": ["../../packages/types/src"],
+      "@dealos/ui": ["../../packages/ui/src"],
+      "@dealos/utils": ["../../packages/utils/src"]
+    }
+  },
+  "include": ["src/**/*.ts"]
+}

@@ -1,0 +1,13 @@
+export { prisma } from './client.js';
+export { AffiliateEngine } from './affiliate/affiliate-engine.js';
+export { DealRepository } from './deals/deal-repository.js';
+export { DealService } from './deals/deal-service.js';
+export { computeDealScore, rankDeals } from './deals/deal-ranking.js';
+export { dealCreateSchema, dealUpdateSchema } from './deals/deal-validator.js';
+export { CouponRepository } from './repositories/coupon-repository.js';
+export { CategoryRepository } from './repositories/category-repository.js';
+export { MerchantRepository } from './repositories/merchant-repository.js';
+export { NewsletterRepository } from './repositories/newsletter-repository.js';
+export { ProductRepository } from './repositories/product-repository.js';
+export { UserRepository } from './repositories/user-repository.js';
+export { SessionRepository } from './repositories/session-repository.js';

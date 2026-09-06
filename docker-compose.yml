@@ -1,0 +1,21 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: dealos-postgres
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: dealos
+      POSTGRES_USER: dealos
+      POSTGRES_PASSWORD: dealos
+    volumes:
+      - dealos-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U dealos -d dealos"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  dealos-postgres-data:

@@ -1,0 +1,339 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  ADMIN
+  MEMBER
+}
+
+enum DealStatus {
+  DRAFT
+  ACTIVE
+  EXPIRED
+  HIDDEN
+}
+
+enum AffiliateNetwork {
+  AMAZON
+  IMPACT
+  CJ
+  AWIN
+  PARTNERIZE
+  SHAREASALE
+  CUSTOM
+}
+
+enum AlertType {
+  PRICE_DROP
+  BACK_IN_STOCK
+  DEAL_EXPIRY
+}
+
+enum CommissionStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  PAID
+}
+
+enum NewsletterStatus {
+  PENDING
+  SUBSCRIBED
+  UNSUBSCRIBED
+}
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  emailVerified DateTime?
+  name          String?
+  password      String?
+  image         String?
+  role          UserRole  @default(MEMBER)
+  isActive      Boolean   @default(true)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  accounts  Account[]
+  reviews   Review[]
+  favorites Favorite[]
+  alerts    Alert[]
+  sessions  Session[]
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+}
+
+model Category {
+  id        String   @id @default(cuid())
+  name      String
+  slug      String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  products Product[]
+}
+
+model Merchant {
+  id               String   @id @default(cuid())
+  name             String
+  slug             String   @unique
+  websiteUrl       String
+  affiliateNetwork AffiliateNetwork
+  isActive         Boolean          @default(true)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  deals          Deal[]
+  coupons        Coupon[]
+  priceHistory   PriceHistory[]
+  affiliateLinks AffiliateLink[]
+
+  @@index([affiliateNetwork, isActive])
+}
+
+model Product {
+  id          String   @id @default(cuid())
+  name        String
+  slug        String   @unique
+  description String?
+  imageUrl    String?
+  categoryId  String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  category     Category?      @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  deals        Deal[]
+  priceHistory PriceHistory[]
+  reviews      Review[]
+  favorites    Favorite[]
+  alerts       Alert[]
+
+  @@index([categoryId, isActive])
+}
+
+model Deal {
+  id            String      @id @default(cuid())
+  slug          String      @unique
+  title         String
+  description   String?
+  productId     String
+  merchantId    String
+  currentPrice  Decimal     @db.Decimal(10, 2)
+  previousPrice Decimal?    @db.Decimal(10, 2)
+  currency      String      @default("USD")
+  startsAt      DateTime?
+  endsAt        DateTime?
+  source        String?
+  status        DealStatus  @default(ACTIVE)
+  isFeatured    Boolean     @default(false)
+  isHot         Boolean     @default(false)
+  isHidden      Boolean     @default(false)
+  score         Float       @default(0)
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  product        Product        @relation(fields: [productId], references: [id], onDelete: Cascade)
+  merchant       Merchant       @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  coupons        Coupon[]
+  clicks         Click[]
+  affiliateLinks AffiliateLink[]
+
+  @@index([status, isFeatured, isHot, isHidden, createdAt])
+  @@index([productId, merchantId, status])
+}
+
+model Coupon {
+  id          String   @id @default(cuid())
+  code        String
+  description String?
+  dealId      String?
+  merchantId  String
+  startsAt    DateTime?
+  expiresAt   DateTime?
+  isActive    Boolean  @default(true)
+  isHidden    Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  deal     Deal?    @relation(fields: [dealId], references: [id], onDelete: SetNull)
+  merchant Merchant @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+
+  @@unique([merchantId, code])
+  @@index([isActive, isHidden, expiresAt])
+}
+
+model PriceHistory {
+  id         String   @id @default(cuid())
+  productId  String
+  merchantId String
+  price      Decimal  @db.Decimal(10, 2)
+  currency   String   @default("USD")
+  recordedAt DateTime @default(now())
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  product  Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  merchant Merchant @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+
+  @@index([productId, merchantId, recordedAt])
+}
+
+model AffiliateLink {
+  id               String           @id @default(cuid())
+  merchantId       String
+  dealId           String?
+  network          AffiliateNetwork
+  externalId       String?
+  destinationUrl   String
+  trackingTemplate String
+  isActive         Boolean          @default(true)
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+
+  merchant         Merchant          @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  deal             Deal?             @relation(fields: [dealId], references: [id], onDelete: SetNull)
+  clicks           Click[]
+  commissionEvents CommissionEvent[]
+
+  @@index([network, isActive])
+}
+
+model Click {
+  id              String   @id @default(cuid())
+  dealId          String?
+  affiliateLinkId String?
+  ipAddress       String?
+  userAgent       String?
+  referrer        String?
+  sessionId       String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  deal          Deal?          @relation(fields: [dealId], references: [id], onDelete: SetNull)
+  affiliateLink AffiliateLink? @relation(fields: [affiliateLinkId], references: [id], onDelete: SetNull)
+  session       Session?       @relation(fields: [sessionId], references: [id], onDelete: SetNull)
+  commissionEvents CommissionEvent[]
+
+  @@index([affiliateLinkId, createdAt])
+}
+
+model Review {
+  id        String   @id @default(cuid())
+  productId String
+  userId    String?
+  title     String
+  body      String
+  rating    Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  user    User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([productId, rating])
+}
+
+model Favorite {
+  id        String   @id @default(cuid())
+  userId    String
+  productId String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, productId])
+}
+
+model Alert {
+  id          String    @id @default(cuid())
+  userId      String
+  productId   String
+  type        AlertType
+  targetPrice Decimal?  @db.Decimal(10, 2)
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([userId, type, isActive])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  userId       String?
+  tokenHash    String   @unique
+  ipAddress    String?
+  userAgent    String?
+  lastActiveAt DateTime @default(now())
+  expiresAt    DateTime
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  user   User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
+  clicks Click[]
+
+  @@index([userId, expiresAt])
+}
+
+model CommissionEvent {
+  id              String           @id @default(cuid())
+  affiliateLinkId String
+  clickId         String?
+  orderId         String?
+  amount          Decimal          @db.Decimal(10, 2)
+  currency        String           @default("USD")
+  status          CommissionStatus @default(PENDING)
+  recordedAt      DateTime         @default(now())
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  affiliateLink AffiliateLink @relation(fields: [affiliateLinkId], references: [id], onDelete: Cascade)
+  click         Click?        @relation(fields: [clickId], references: [id], onDelete: SetNull)
+
+  @@index([affiliateLinkId, status, recordedAt])
+}
+
+model NewsletterSubscription {
+  id               String           @id @default(cuid())
+  email            String           @unique
+  status           NewsletterStatus @default(PENDING)
+  verificationHash String?
+  verificationSentAt DateTime?
+  verificationExpiresAt DateTime?
+  verifiedAt       DateTime?
+  unsubscribedAt   DateTime?
+  source           String?
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+
+  @@index([status, createdAt])
+}

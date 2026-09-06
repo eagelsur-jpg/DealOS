@@ -1,0 +1,26 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "strict": true,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "jsx": "react-jsx",
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "skipLibCheck": true,
+    "resolveJsonModule": true,
+    "baseUrl": ".",
+    "paths": {
+      "@dealos/ai": ["packages/ai/src"],
+      "@dealos/config": ["packages/config/src"],
+      "@dealos/database": ["packages/database/src"],
+      "@dealos/types": ["packages/types/src"],
+      "@dealos/ui": ["packages/ui/src"],
+      "@dealos/utils": ["packages/utils/src"]
+    }
+  }
+}

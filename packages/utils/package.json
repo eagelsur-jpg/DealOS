@@ -1,0 +1,24 @@
+{
+  "name": "@dealos/utils",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "dependencies": {
+    "@dealos/config": "workspace:*",
+    "@dealos/types": "workspace:*",
+    "date-fns": "^4.1.0",
+    "ioredis": "^5.4.1",
+    "pino": "^9.5.0",
+    "slugify": "^1.6.6",
+    "zod": "^3.24.1"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "lint": "eslint \"src/**/*.ts\"",
+    "test": "vitest run --passWithNoTests",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "clean": "rm -rf dist"
+  }
+}
