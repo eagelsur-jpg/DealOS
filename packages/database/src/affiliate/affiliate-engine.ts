@@ -79,14 +79,35 @@ export class AffiliateEngine {
   }
 
   async recordCommission(input: CommissionEventInput) {
+    const data = {
+      clickId: input.clickId ?? null,
+      amount: input.amount,
+      currency: input.currency ?? 'USD',
+      status: input.status ?? CommissionStatus.PENDING
+    };
+
+    if (input.orderId) {
+      return this.prisma.commissionEvent.upsert({
+        where: {
+          affiliateLinkId_orderId: {
+            affiliateLinkId: input.affiliateLinkId,
+            orderId: input.orderId
+          }
+        },
+        update: data,
+        create: {
+          affiliateLinkId: input.affiliateLinkId,
+          orderId: input.orderId,
+          ...data
+        }
+      });
+    }
+
     return this.prisma.commissionEvent.create({
       data: {
         affiliateLinkId: input.affiliateLinkId,
-        clickId: input.clickId ?? null,
-        orderId: input.orderId ?? null,
-        amount: input.amount,
-        currency: input.currency ?? 'USD',
-        status: input.status ?? CommissionStatus.PENDING
+        orderId: null,
+        ...data
       }
     });
   }

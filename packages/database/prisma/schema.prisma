@@ -319,6 +319,7 @@ model CommissionEvent {
   affiliateLink AffiliateLink @relation(fields: [affiliateLinkId], references: [id], onDelete: Cascade)
   click         Click?        @relation(fields: [clickId], references: [id], onDelete: SetNull)
 
+  @@unique([affiliateLinkId, orderId])
   @@index([affiliateLinkId, status, recordedAt])
 }
 
