@@ -29,6 +29,52 @@ const networkTrackingParams: Record<AffiliateNetwork, string> = {
   CUSTOM: 'click={clickId}'
 };
 
+const isPrivateIpv4Address = (hostname: string): boolean => {
+  const octets = hostname.split('.').map(Number);
+  if (octets.length !== 4 || octets.some((octet) => !Number.isInteger(octet) || octet < 0 || octet > 255)) {
+    return false;
+  }
+
+  return (
+    octets[0] === 10 ||
+    octets[0] === 127 ||
+    (octets[0] === 169 && octets[1] === 254) ||
+    (octets[0] === 172 && octets[1] >= 16 && octets[1] <= 31) ||
+    (octets[0] === 192 && octets[1] === 168) ||
+    (octets[0] === 100 && octets[1] >= 64 && octets[1] <= 127)
+  );
+};
+
+export const assertSafeAffiliateDestination = (destination: string): string => {
+  let url: URL;
+  try {
+    url = new URL(destination);
+  } catch {
+    throw new AppError('Affiliate destination is invalid', {
+      statusCode: 400,
+      code: 'UNSAFE_AFFILIATE_DESTINATION'
+    });
+  }
+
+  const hostname = url.hostname.toLowerCase();
+  if (
+    url.protocol !== 'https:' ||
+    url.username ||
+    url.password ||
+    hostname === 'localhost' ||
+    hostname.endsWith('.localhost') ||
+    isPrivateIpv4Address(hostname) ||
+    hostname === '::1'
+  ) {
+    throw new AppError('Affiliate destination is not permitted', {
+      statusCode: 400,
+      code: 'UNSAFE_AFFILIATE_DESTINATION'
+    });
+  }
+
+  return url.toString();
+};
+
 export class AffiliateEngine {
   constructor(private readonly prisma: PrismaClient) {}
 
@@ -45,11 +91,13 @@ export class AffiliateEngine {
 
     const template = link.trackingTemplate || link.destinationUrl;
     if (template.includes('{clickId}')) {
-      return template.replaceAll('{clickId}', clickId);
+      return assertSafeAffiliateDestination(template.replaceAll('{clickId}', clickId));
     }
 
     const separator = template.includes('?') ? '&' : '?';
-    return `${template}${separator}${networkTrackingParams[link.network].replace('{clickId}', clickId)}`;
+    return assertSafeAffiliateDestination(
+      `${template}${separator}${networkTrackingParams[link.network].replace('{clickId}', clickId)}`,
+    );
   }
 
   async trackClick(affiliateLinkId: string, context: RedirectContext = {}) {

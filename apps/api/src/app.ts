@@ -1,6 +1,10 @@
 import type { ApiDependencies } from './dependencies.js';
 import { OpenAPIHono, createRoute, z } from '@hono/zod-openapi';
 import { swaggerUI } from '@hono/swagger-ui';
+import { bodyLimit } from 'hono/body-limit';
+import { cors } from 'hono/cors';
+import type { Context, Next } from 'hono';
+import { jwtVerify } from 'jose';
 import { AppError, createPaginationMeta, isAppError, logger, paginate } from '@dealos/utils';
 
 const dealModeSchema = z.enum(['featured', 'trending', 'newest', 'hot', 'expired', 'hidden']).optional();
@@ -87,14 +91,88 @@ const autocompleteQuerySchema = z.object({
   limit: z.coerce.number().int().positive().max(20).optional()
 });
 
-const commissionSchema = z.object({
-  affiliateLinkId: z.string().min(1),
-  clickId: z.string().optional(),
-  orderId: z.string().optional(),
-  amount: z.number().positive(),
-  currency: z.string().length(3).optional(),
-  status: z.enum(['PENDING', 'APPROVED', 'REJECTED', 'PAID']).optional()
-});
+const jsonContentType = 'application/json';
+const encoder = new TextEncoder();
+
+export interface ApiSecurityOptions {
+  adminJwtSecret?: string;
+  corsOrigins?: string[];
+  publicRateLimit?: { limit: number; windowMs: number };
+}
+
+const requestKey = (request: Request): string => {
+  // Do not trust forwarded IP headers until a deployment-specific trusted-proxy
+  // configuration exists. This intentionally trades precision for safety.
+  const pathname = new URL(request.url).pathname;
+  const scope = pathname.startsWith('/r/') ? '/r/*' : pathname;
+  return `${request.method}:${scope}:untrusted-client`;
+};
+
+const createRateLimiter = (limit: number, windowMs: number) => {
+  const hits = new Map<string, { count: number; resetAt: number }>();
+  return async (context: Context, next: Next) => {
+    const key = requestKey(context.req.raw);
+    const now = Date.now();
+    const current = hits.get(key);
+    const entry = !current || current.resetAt <= now ? { count: 0, resetAt: now + windowMs } : current;
+    entry.count += 1;
+    hits.set(key, entry);
+
+    if (entry.count > limit) {
+      context.header('Retry-After', String(Math.ceil((entry.resetAt - now) / 1000)));
+      return context.json({ error: 'RATE_LIMITED', message: 'Too many requests.' }, 429);
+    }
+
+    await next();
+  };
+};
+
+const requireJson = (request: Request) => {
+  const contentType = request.headers.get('content-type') ?? '';
+  if (!contentType.toLowerCase().startsWith(jsonContentType)) {
+    throw new AppError('Content-Type must be application/json', { statusCode: 415, code: 'UNSUPPORTED_MEDIA_TYPE' });
+  }
+};
+
+const isAdminToken = async (request: Request, secret?: string): Promise<boolean> => {
+  if (!secret) return false;
+  const authorization = request.headers.get('authorization');
+  if (!authorization?.startsWith('Bearer ')) return false;
+
+  try {
+    const { payload } = await jwtVerify(authorization.slice('Bearer '.length), encoder.encode(secret), {
+      algorithms: ['HS256']
+    });
+    return payload.role === 'ADMIN';
+  } catch {
+    return false;
+  }
+};
+
+const assertSafeApiRedirect = (destination: string): string => {
+  try {
+    const url = new URL(destination);
+    const hostname = url.hostname.toLowerCase();
+    const isPrivateIpv4 = /^(10|127)\.|^169\.254\.|^192\.168\.|^172\.(1[6-9]|2\d|3[01])\./.test(hostname);
+    if (
+      url.protocol !== 'https:' ||
+      url.username ||
+      url.password ||
+      hostname === 'localhost' ||
+      hostname.endsWith('.localhost') ||
+      hostname === '::1' ||
+      isPrivateIpv4
+    ) {
+      throw new Error('unsafe');
+    }
+    return url.toString();
+  } catch {
+    throw new AppError('Affiliate destination is not permitted', {
+      statusCode: 400,
+      code: 'UNSAFE_AFFILIATE_DESTINATION'
+    });
+  }
+};
 
 const healthRoute = createRoute({
   method: 'get',
@@ -132,8 +210,30 @@ const dealsRoute = createRoute({
   }
 });
 
-export const createApp = (dependencies: ApiDependencies) => {
+export const createApp = (dependencies: ApiDependencies, security: ApiSecurityOptions = {}) => {
   const app = new OpenAPIHono();
+  const allowedOrigins = security.corsOrigins ?? [];
+  const publicRateLimit = security.publicRateLimit ?? { limit: 60, windowMs: 60_000 };
+  const limitPublicRequests = createRateLimiter(publicRateLimit.limit, publicRateLimit.windowMs);
+  const requireAdmin = async (context: Context, next: Next) => {
+    if (!(await isAdminToken(context.req.raw, security.adminJwtSecret))) {
+      return context.json({ error: 'UNAUTHORIZED', message: 'Administrator authorization is required.' }, 401);
+    }
+    await next();
+  };
+
+  app.use('*', cors({
+    origin: (origin) => (allowedOrigins.includes(origin) ? origin : undefined),
+    allowMethods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowHeaders: ['Authorization', 'Content-Type'],
+    maxAge: 600
+  }));
+  app.use('*', bodyLimit({
+    maxSize: 16 * 1024,
+    onError: (context) => context.json({ error: 'PAYLOAD_TOO_LARGE', message: 'Request body exceeds 16 KiB.' }, 413)
+  }));
+  app.use('/r/*', limitPublicRequests);
+  app.use('/v1/search/*', limitPublicRequests);
 
   app.doc('/openapi.json', {
     openapi: '3.0.0',
@@ -198,7 +298,8 @@ export const createApp = (dependencies: ApiDependencies) => {
     return context.json(deal);
   });
 
-  app.post('/v1/deals', async (context) => {
+  app.post('/v1/deals', requireAdmin, async (context) => {
+    requireJson(context.req.raw);
     const payload: z.infer<typeof createDealSchema> = createDealSchema.parse(await context.req.json());
     const created = await dependencies.deals.createDeal({
       ...payload,
@@ -210,14 +311,15 @@ export const createApp = (dependencies: ApiDependencies) => {
     return context.json(created, 201);
   });
 
-  app.patch('/v1/deals/:id', async (context) => {
+  app.patch('/v1/deals/:id', requireAdmin, async (context) => {
+    requireJson(context.req.raw);
     const payload: z.infer<typeof updateDealSchema> = updateDealSchema.parse(await context.req.json());
-    const updated = await dependencies.deals.updateDeal(context.req.param('id'), payload);
+    const updated = await dependencies.deals.updateDeal(context.req.param('id')!, payload);
     return context.json(updated);
   });
 
-  app.delete('/v1/deals/:id', async (context) => {
-    await dependencies.deals.deleteDeal(context.req.param('id'));
+  app.delete('/v1/deals/:id', requireAdmin, async (context) => {
+    await dependencies.deals.deleteDeal(context.req.param('id')!);
     return context.body(null, 204);
   });
 
@@ -277,16 +379,18 @@ export const createApp = (dependencies: ApiDependencies) => {
     if (!merchant) throw new AppError('Merchant not found', { statusCode: 404, code: 'MERCHANT_NOT_FOUND' });
     return context.json(merchant);
   });
-  app.post('/v1/merchants', async (context) => {
+  app.post('/v1/merchants', requireAdmin, async (context) => {
+    requireJson(context.req.raw);
     const payload = merchantSchema.parse(await context.req.json());
     return context.json(await dependencies.merchants.create(payload), 201);
   });
-  app.patch('/v1/merchants/:id', async (context) => {
+  app.patch('/v1/merchants/:id', requireAdmin, async (context) => {
+    requireJson(context.req.raw);
     const payload = merchantSchema.partial().parse(await context.req.json());
-    return context.json(await dependencies.merchants.update(context.req.param('id'), payload));
+    return context.json(await dependencies.merchants.update(context.req.param('id')!, payload));
   });
-  app.delete('/v1/merchants/:id', async (context) => {
-    await dependencies.merchants.remove(context.req.param('id'));
+  app.delete('/v1/merchants/:id', requireAdmin, async (context) => {
+    await dependencies.merchants.remove(context.req.param('id')!);
     return context.body(null, 204);
   });
 
@@ -296,16 +400,18 @@ export const createApp = (dependencies: ApiDependencies) => {
     if (!product) throw new AppError('Product not found', { statusCode: 404, code: 'PRODUCT_NOT_FOUND' });
     return context.json(product);
   });
-  app.post('/v1/products', async (context) => {
+  app.post('/v1/products', requireAdmin, async (context) => {
+    requireJson(context.req.raw);
     const payload = productSchema.parse(await context.req.json());
     return context.json(await dependencies.products.create(payload), 201);
   });
-  app.patch('/v1/products/:id', async (context) => {
+  app.patch('/v1/products/:id', requireAdmin, async (context) => {
+    requireJson(context.req.raw);
     const payload = productSchema.partial().parse(await context.req.json());
-    return context.json(await dependencies.products.update(context.req.param('id'), payload));
+    return context.json(await dependencies.products.update(context.req.param('id')!, payload));
   });
-  app.delete('/v1/products/:id', async (context) => {
-    await dependencies.products.remove(context.req.param('id'));
+  app.delete('/v1/products/:id', requireAdmin, async (context) => {
+    await dependencies.products.remove(context.req.param('id')!);
     return context.body(null, 204);
   });
 
@@ -316,16 +422,18 @@ export const createApp = (dependencies: ApiDependencies) => {
     if (!category) throw new AppError('Category not found', { statusCode: 404, code: 'CATEGORY_NOT_FOUND' });
     return context.json(category);
   });
-  app.post('/v1/categories', async (context) => {
+  app.post('/v1/categories', requireAdmin, async (context) => {
+    requireJson(context.req.raw);
     const payload = categorySchema.parse(await context.req.json());
     return context.json(await dependencies.categories.create(payload), 201);
   });
-  app.patch('/v1/categories/:id', async (context) => {
+  app.patch('/v1/categories/:id', requireAdmin, async (context) => {
+    requireJson(context.req.raw);
     const payload = categorySchema.partial().parse(await context.req.json());
-    return context.json(await dependencies.categories.update(context.req.param('id'), payload));
+    return context.json(await dependencies.categories.update(context.req.param('id')!, payload));
   });
-  app.delete('/v1/categories/:id', async (context) => {
-    await dependencies.categories.remove(context.req.param('id'));
+  app.delete('/v1/categories/:id', requireAdmin, async (context) => {
+    await dependencies.categories.remove(context.req.param('id')!);
     return context.body(null, 204);
   });
   app.get('/v1/coupons/:id', async (context) => {
@@ -333,33 +441,38 @@ export const createApp = (dependencies: ApiDependencies) => {
     if (!coupon) throw new AppError('Coupon not found', { statusCode: 404, code: 'COUPON_NOT_FOUND' });
     return context.json(coupon);
   });
-  app.post('/v1/coupons', async (context) => {
+  app.post('/v1/coupons', requireAdmin, async (context) => {
+    requireJson(context.req.raw);
     const payload = couponSchema.parse(await context.req.json());
     return context.json(await dependencies.coupons.create(payload), 201);
   });
-  app.patch('/v1/coupons/:id', async (context) => {
+  app.patch('/v1/coupons/:id', requireAdmin, async (context) => {
+    requireJson(context.req.raw);
     const payload = couponSchema.partial().parse(await context.req.json());
-    return context.json(await dependencies.coupons.update(context.req.param('id'), payload));
+    return context.json(await dependencies.coupons.update(context.req.param('id')!, payload));
   });
-  app.delete('/v1/coupons/:id', async (context) => {
-    await dependencies.coupons.remove(context.req.param('id'));
+  app.delete('/v1/coupons/:id', requireAdmin, async (context) => {
+    await dependencies.coupons.remove(context.req.param('id')!);
     return context.body(null, 204);
   });
 
   app.get('/r/:affiliateLinkId', async (context) => {
     const affiliateLinkId = context.req.param('affiliateLinkId');
     const tracked = await dependencies.affiliate.trackClick(affiliateLinkId, {
-      ipAddress: context.req.header('x-forwarded-for'),
+      // Forwarded headers are ignored until a trusted-proxy policy is configured.
       userAgent: context.req.header('user-agent'),
       referrer: context.req.header('referer')
     });
-    return context.redirect(tracked.redirectUrl, 302);
+    return context.redirect(assertSafeApiRedirect(tracked.redirectUrl), 302);
   });
 
-  app.post('/v1/commissions', async (context) => {
-    const payload: z.infer<typeof commissionSchema> = commissionSchema.parse(await context.req.json());
-    const event = await dependencies.affiliate.recordCommission(payload);
-    return context.json(event, 201);
+  app.post('/v1/commissions', (context) => {
+    // Provider-specific signature verification and replay protection are not yet
+    // defined. Do not accept anonymous commission events in the interim.
+    return context.json({
+      error: 'COMMISSION_INGESTION_NOT_CONFIGURED',
+      message: 'Commission ingestion requires a verified provider webhook contract.'
+    }, 503);
   });
 
   app.onError((error, context) => {

@@ -10,11 +10,10 @@ export async function GET(
   },
 ) {
   const { affiliateLinkId } = await context.params;
-  const ipAddress = request.headers.get('x-forwarded-for') ?? undefined;
   const userAgent = request.headers.get('user-agent') ?? undefined;
   const referrer = request.headers.get('referer') ?? undefined;
   const tracked = await affiliate.trackClick(affiliateLinkId, {
-    ipAddress,
+    // Forwarded IP headers are untrusted without an explicit proxy policy.
     userAgent,
     referrer
   });

@@ -1,5 +1,5 @@
 export { prisma } from './client.js';
-export { AffiliateEngine } from './affiliate/affiliate-engine.js';
+export { AffiliateEngine, assertSafeAffiliateDestination } from './affiliate/affiliate-engine.js';
 export { DealRepository } from './deals/deal-repository.js';
 export { DealService } from './deals/deal-service.js';
 export { computeDealScore, rankDeals } from './deals/deal-ranking.js';

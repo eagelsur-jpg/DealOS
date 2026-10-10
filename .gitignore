@@ -13,3 +13,5 @@ coverage/
 .DS_Store
 .vscode/
 *.tsbuildinfo
+
+node-compile-cache/

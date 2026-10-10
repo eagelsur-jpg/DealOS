@@ -1,8 +1,13 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { PrismaClient } from '@prisma/client';
-import { AffiliateEngine } from './affiliate-engine.js';
+import { AffiliateEngine, assertSafeAffiliateDestination } from './affiliate-engine.js';
 
 describe('affiliate engine commission recording', () => {
+  it('rejects unsafe redirect destinations', () => {
+    expect(() => assertSafeAffiliateDestination('javascript:alert(1)')).toThrow('not permitted');
+    expect(() => assertSafeAffiliateDestination('https://127.0.0.1/private')).toThrow('not permitted');
+  });
+
   it('upserts commission events that have a provider order ID', async () => {
     const upsert = vi.fn().mockResolvedValue({ id: 'commission-1' });
     const create = vi.fn();

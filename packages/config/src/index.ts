@@ -19,7 +19,9 @@ export const adminEnvSchema = commonEnvSchema.extend({
 export const apiEnvSchema = commonEnvSchema.extend({
   API_PORT: z.coerce.number().int().positive().default(3002),
   DATABASE_URL: z.string().url(),
-  REDIS_URL: z.string().url().optional()
+  REDIS_URL: z.string().url().optional(),
+  ADMIN_JWT_SECRET: z.string().min(32),
+  CORS_ORIGINS: z.string().default('http://localhost:3000,http://localhost:3001')
 });
 
 export const aiEnvSchema = commonEnvSchema.extend({

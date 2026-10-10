@@ -9,6 +9,7 @@ const encoder = new TextEncoder();
 export interface AdminSessionPayload extends JWTPayload {
   sub: string;
   email: string;
+  role: 'ADMIN';
 }
 
 export const createSessionToken = async (payload: AdminSessionPayload): Promise<string> =>
