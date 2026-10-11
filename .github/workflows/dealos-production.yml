@@ -1,0 +1,22 @@
+name: DealOS production build and guarded cutover
+on:
+  push:
+    branches: [codex/dealos-production-audit]
+    paths: ['.github/workflows/dealos-production.yml', 'scripts/ops/deploy-production.mjs']
+permissions:
+  contents: read
+concurrency:
+  group: dealos-vps-operations
+  cancel-in-progress: false
+jobs:
+  deploy:
+    runs-on: [self-hosted, Linux, X64]
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - name: Test and build an isolated release, then switch DealOS only
+        run: |
+          export PATH="/root/.nvm/versions/node/v22.23.2/bin:$PATH"
+          node scripts/ops/deploy-production.mjs
