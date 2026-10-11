@@ -3,9 +3,10 @@ import type { PrismaClient } from '@prisma/client';
 export class MerchantRepository {
   constructor(private readonly prisma: PrismaClient) {}
 
-  list() {
+  list(includeInactive = false) {
     return this.prisma.merchant.findMany({
-      orderBy: { name: 'asc' }
+      where: includeInactive ? {} : { isActive: true },
+      orderBy: { name: 'asc' },
     });
   }
 
@@ -13,9 +14,9 @@ export class MerchantRepository {
     return this.prisma.merchant.findMany({
       where: {
         name: { contains: query, mode: 'insensitive' },
-        isActive: true
+        isActive: true,
       },
-      orderBy: { name: 'asc' }
+      orderBy: { name: 'asc' },
     });
   }
 
@@ -39,7 +40,8 @@ export class MerchantRepository {
       name: string;
       slug: string;
       websiteUrl: string;
-      affiliateNetwork: 'AMAZON' | 'IMPACT' | 'CJ' | 'AWIN' | 'PARTNERIZE' | 'SHAREASALE' | 'CUSTOM';
+      affiliateNetwork:
+        'AMAZON' | 'IMPACT' | 'CJ' | 'AWIN' | 'PARTNERIZE' | 'SHAREASALE' | 'CUSTOM';
       isActive: boolean;
     }>,
   ) {

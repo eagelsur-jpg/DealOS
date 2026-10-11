@@ -1,14 +1,12 @@
-import type { CurrencyCode } from '@dealos/types';
-
 export const formatCurrency = (
   amount: number,
-  currency: CurrencyCode = 'USD',
+  currency: string = 'USD',
   locale = 'en-US',
 ): string =>
   new Intl.NumberFormat(locale, {
     style: 'currency',
     currency,
-    maximumFractionDigits: 2
+    maximumFractionDigits: 2,
   }).format(amount);
 
 export const calculateSavingsPercent = (

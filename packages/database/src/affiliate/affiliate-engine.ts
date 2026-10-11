@@ -20,18 +20,21 @@ export interface CommissionEventInput {
 }
 
 const networkTrackingParams: Record<AffiliateNetwork, string> = {
-  AMAZON: 'tag=dealos-20',
+  AMAZON: '',
   IMPACT: 'irclickid={clickId}',
   CJ: 'sid={clickId}',
   AWIN: 'clickref={clickId}',
   PARTNERIZE: 'clickref={clickId}',
   SHAREASALE: 'afftrack={clickId}',
-  CUSTOM: 'click={clickId}'
+  CUSTOM: 'click={clickId}',
 };
 
 const isPrivateIpv4Address = (hostname: string): boolean => {
   const octets = hostname.split('.').map(Number);
-  if (octets.length !== 4 || octets.some((octet) => !Number.isInteger(octet) || octet < 0 || octet > 255)) {
+  if (
+    octets.length !== 4 ||
+    octets.some((octet) => !Number.isInteger(octet) || octet < 0 || octet > 255)
+  ) {
     return false;
   }
 
@@ -52,23 +55,28 @@ export const assertSafeAffiliateDestination = (destination: string): string => {
   } catch {
     throw new AppError('Affiliate destination is invalid', {
       statusCode: 400,
-      code: 'UNSAFE_AFFILIATE_DESTINATION'
+      code: 'UNSAFE_AFFILIATE_DESTINATION',
     });
   }
 
   const hostname = url.hostname.toLowerCase();
   if (
     url.protocol !== 'https:' ||
+    /(?:^|\/)example(?:\/|$)/i.test(url.pathname) ||
+    /(^|\.)example\.(com|org|net)$/i.test(hostname) ||
     url.username ||
     url.password ||
     hostname === 'localhost' ||
     hostname.endsWith('.localhost') ||
     isPrivateIpv4Address(hostname) ||
-    hostname === '::1'
+    hostname.includes(':') ||
+    hostname === '0.0.0.0' ||
+    hostname.endsWith('.local') ||
+    hostname.endsWith('.internal')
   ) {
     throw new AppError('Affiliate destination is not permitted', {
       statusCode: 400,
-      code: 'UNSAFE_AFFILIATE_DESTINATION'
+      code: 'UNSAFE_AFFILIATE_DESTINATION',
     });
   }
 
@@ -80,12 +88,12 @@ export class AffiliateEngine {
 
   async buildRedirectUrl(affiliateLinkId: string, clickId: string): Promise<string> {
     const link = await this.prisma.affiliateLink.findUnique({
-      where: { id: affiliateLinkId }
+      where: { id: affiliateLinkId },
     });
     if (!link || !link.isActive) {
       throw new AppError('Affiliate link not available', {
         statusCode: 404,
-        code: 'AFFILIATE_LINK_NOT_FOUND'
+        code: 'AFFILIATE_LINK_NOT_FOUND',
       });
     }
 
@@ -94,21 +102,46 @@ export class AffiliateEngine {
       return assertSafeAffiliateDestination(template.replaceAll('{clickId}', clickId));
     }
 
-    const separator = template.includes('?') ? '&' : '?';
-    return assertSafeAffiliateDestination(
-      `${template}${separator}${networkTrackingParams[link.network].replace('{clickId}', clickId)}`,
+    const url = new URL(assertSafeAffiliateDestination(template));
+    const params = new URLSearchParams(
+      networkTrackingParams[link.network].replace('{clickId}', encodeURIComponent(clickId)),
     );
+    for (const [key, value] of params) url.searchParams.set(key, value);
+    return assertSafeAffiliateDestination(url.toString());
   }
 
   async trackClick(affiliateLinkId: string, context: RedirectContext = {}) {
     const link = await this.prisma.affiliateLink.findUnique({ where: { id: affiliateLinkId } });
-    if (!link) {
+    if (!link || !link.isActive) {
       throw new AppError('Affiliate link not found', {
         statusCode: 404,
-        code: 'AFFILIATE_LINK_NOT_FOUND'
+        code: 'AFFILIATE_LINK_NOT_FOUND',
       });
     }
 
+    await this.buildRedirectUrl(affiliateLinkId, 'validation');
+    const merchant = await this.prisma.merchant.findUnique({ where: { id: link.merchantId } });
+    if (!merchant?.isActive)
+      throw new AppError('Merchant is inactive', {
+        statusCode: 404,
+        code: 'AFFILIATE_LINK_NOT_FOUND',
+      });
+    if (link.dealId) {
+      const deal = await this.prisma.deal.findUnique({ where: { id: link.dealId } });
+      const now = new Date();
+      if (
+        !deal ||
+        deal.status !== 'ACTIVE' ||
+        deal.isHidden ||
+        (deal.startsAt && deal.startsAt > now) ||
+        (deal.endsAt && deal.endsAt <= now)
+      ) {
+        throw new AppError('Deal is unavailable', {
+          statusCode: 404,
+          code: 'AFFILIATE_LINK_NOT_FOUND',
+        });
+      }
+    }
     const click = await this.prisma.click.create({
       data: {
         affiliateLinkId,
@@ -116,13 +149,13 @@ export class AffiliateEngine {
         ipAddress: context.ipAddress ?? null,
         userAgent: context.userAgent ?? null,
         referrer: context.referrer ?? null,
-        sessionId: context.sessionId ?? null
-      }
+        sessionId: context.sessionId ?? null,
+      },
     });
 
     return {
       clickId: click.id,
-      redirectUrl: await this.buildRedirectUrl(affiliateLinkId, click.id)
+      redirectUrl: await this.buildRedirectUrl(affiliateLinkId, click.id),
     };
   }
 
@@ -131,7 +164,7 @@ export class AffiliateEngine {
       clickId: input.clickId ?? null,
       amount: input.amount,
       currency: input.currency ?? 'USD',
-      status: input.status ?? CommissionStatus.PENDING
+      status: input.status ?? CommissionStatus.PENDING,
     };
 
     if (input.orderId) {
@@ -139,15 +172,15 @@ export class AffiliateEngine {
         where: {
           affiliateLinkId_orderId: {
             affiliateLinkId: input.affiliateLinkId,
-            orderId: input.orderId
-          }
+            orderId: input.orderId,
+          },
         },
         update: data,
         create: {
           affiliateLinkId: input.affiliateLinkId,
           orderId: input.orderId,
-          ...data
-        }
+          ...data,
+        },
       });
     }
 
@@ -155,8 +188,8 @@ export class AffiliateEngine {
       data: {
         affiliateLinkId: input.affiliateLinkId,
         orderId: null,
-        ...data
-      }
+        ...data,
+      },
     });
   }
 }

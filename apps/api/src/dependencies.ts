@@ -6,10 +6,14 @@ import {
   DealService,
   MerchantRepository,
   ProductRepository,
-  prisma
+  prisma,
 } from '@dealos/database';
 import type { CacheStore } from '@dealos/utils/dist/cache.js';
-import { InMemoryCacheStore, RedisCacheStore, createRedisClient } from '@dealos/utils/dist/cache.js';
+import {
+  InMemoryCacheStore,
+  RedisCacheStore,
+  createRedisClient,
+} from '@dealos/utils/dist/cache.js';
 import { apiEnv } from './env.js';
 
 export interface ApiDependencies {
@@ -20,6 +24,7 @@ export interface ApiDependencies {
   categories: CategoryRepository;
   affiliate: AffiliateEngine;
   cache: CacheStore;
+  checkHealth?: () => Promise<void>;
 }
 
 export const createDependencies = async (): Promise<ApiDependencies> => {
@@ -34,6 +39,10 @@ export const createDependencies = async (): Promise<ApiDependencies> => {
     coupons: new CouponRepository(prisma),
     categories: new CategoryRepository(prisma),
     affiliate: new AffiliateEngine(prisma),
-    cache
+    cache,
+    checkHealth: async () => {
+      await prisma.$queryRaw`SELECT 1`;
+      await cache.get('dealos:readiness');
+    },
   };
 };

@@ -1,8 +1,12 @@
 import type { DealFilters, DealSort } from '@dealos/types';
 import { createPaginationMeta, paginate } from '@dealos/utils';
 import type { DealListMode, DealRepository } from './deal-repository.js';
-import { dealCreateSchema, dealUpdateSchema, type DealCreateInput, type DealUpdateInput } from './deal-validator.js';
-import { rankDeals } from './deal-ranking.js';
+import {
+  dealCreateSchema,
+  dealUpdateSchema,
+  type DealCreateInput,
+  type DealUpdateInput,
+} from './deal-validator.js';
 
 export class DealService {
   constructor(private readonly repository: DealRepository) {}
@@ -13,24 +17,23 @@ export class DealService {
     page?: number;
     pageSize?: number;
     sort?: DealSort;
+    minSavingsPercent?: number;
   }) {
-    const meta = createPaginationMeta({ page: input.page, pageSize: input.pageSize, maxPageSize: 100 });
+    const meta = createPaginationMeta({
+      page: input.page,
+      pageSize: input.pageSize,
+      maxPageSize: 100,
+    });
     const raw = await this.repository.list({
       mode: input.mode,
       filters: input.filters,
       page: meta.page,
       pageSize: meta.pageSize,
-      sort: input.sort
+      sort: input.sort,
+      minSavingsPercent: input.minSavingsPercent,
     });
 
-    const rankedItems = rankDeals(
-      raw.items.map((item) => ({
-        ...item,
-        clickCount: item._count.clicks
-      })),
-    );
-
-    return paginate(rankedItems, raw.totalItems, meta);
+    return paginate(raw.items, raw.totalItems, meta);
   }
 
   async getDeal(id: string) {
@@ -45,7 +48,7 @@ export class DealService {
       previousPrice: parsed.previousPrice ?? null,
       startsAt: parsed.startsAt ?? null,
       endsAt: parsed.endsAt ?? null,
-      source: parsed.source ?? null
+      source: parsed.source ?? null,
     });
   }
 
@@ -57,7 +60,7 @@ export class DealService {
       previousPrice: parsed.previousPrice ?? undefined,
       startsAt: parsed.startsAt ?? undefined,
       endsAt: parsed.endsAt ?? undefined,
-      source: parsed.source ?? undefined
+      source: parsed.source ?? undefined,
     });
   }
 
