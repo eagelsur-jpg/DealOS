@@ -1,4 +1,3 @@
-import { adminEnvSchema } from '@dealos/config';
-import { validateRuntimeEnv } from '@dealos/utils';
+import { adminEnvSchema, validateEnv } from '@dealos/config';
 
-export const getAdminEnv = () => validateRuntimeEnv(adminEnvSchema);
+export const getAdminEnv = () => validateEnv(adminEnvSchema, process.env);

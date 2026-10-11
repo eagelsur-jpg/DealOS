@@ -20,7 +20,11 @@ export const createSessionToken = async (payload: AdminSessionPayload): Promise<
     .sign(encoder.encode(getAdminEnv().ADMIN_JWT_SECRET));
 
 export const verifySessionToken = async (token: string): Promise<AdminSessionPayload> => {
-  const result = await jwtVerify(token, encoder.encode(getAdminEnv().ADMIN_JWT_SECRET));
+  const result = await jwtVerify(token, encoder.encode(getAdminEnv().ADMIN_JWT_SECRET), {
+    algorithms: ['HS256'],
+  });
+  if (result.payload.role !== 'ADMIN' || !result.payload.sub || !result.payload.exp)
+    throw new Error('Invalid admin session');
   return result.payload as unknown as AdminSessionPayload;
 };
 
@@ -32,7 +36,7 @@ export const setAuthCookie = async (token: string) => {
     sameSite: 'lax',
     secure: adminEnv.NODE_ENV === 'production',
     path: '/',
-    maxAge: 60 * 60 * 8
+    maxAge: 60 * 60 * 8,
   });
 };
 

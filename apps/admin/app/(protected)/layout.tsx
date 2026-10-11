@@ -1,3 +1,6 @@
+import { cookies } from 'next/headers';
+import { redirect } from 'next/navigation';
+import { getAuthCookieName, verifySessionToken } from '@/lib/auth';
 import { Button } from '@dealos/ui';
 import Link from 'next/link';
 import type { ReactNode } from 'react';
@@ -6,10 +9,17 @@ const links = [
   { href: '/', label: 'Dashboard' },
   { href: '/products', label: 'Products' },
   { href: '/deals', label: 'Deals' },
-  { href: '/analytics', label: 'Analytics' }
+  { href: '/analytics', label: 'Analytics' },
 ];
 
-export default function ProtectedLayout({ children }: { children: ReactNode }) {
+export default async function ProtectedLayout({ children }: { children: ReactNode }) {
+  const token = (await cookies()).get(getAuthCookieName())?.value;
+  if (!token) redirect('/login');
+  try {
+    await verifySessionToken(token);
+  } catch {
+    redirect('/login');
+  }
   return (
     <div className="grid min-h-screen grid-cols-1 md:grid-cols-[250px_1fr]">
       <aside className="border-r bg-muted/40">
