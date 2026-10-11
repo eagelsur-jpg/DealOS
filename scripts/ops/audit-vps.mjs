@@ -40,7 +40,7 @@ try {
       count(*)::int AS connections FROM pg_stat_activity WHERE backend_type='client backend' GROUP BY 1,2`);
     const linkReview = await tx.affiliateLink.findMany({ where: { isActive: true }, select: {
       destinationUrl: true, trackingTemplate: true, merchant: { select: { isActive: true } },
-      deal: { select: { status: true, isHidden: true, startsAt: true, expiresAt: true } }
+      deal: { select: { status: true, isHidden: true, startsAt: true, endsAt: true } }
     } });
     const affiliateCandidates = linkReview.map(link => {
       try { const url = new URL(link.destinationUrl); return { destinationHost: url.hostname,
@@ -48,7 +48,7 @@ try {
         hasCredentials: Boolean(url.username || url.password), merchantActive: link.merchant.isActive,
         dealStatus: link.deal?.status, hidden: link.deal?.isHidden,
         startsInFuture: Boolean(link.deal?.startsAt && link.deal.startsAt > new Date()),
-        expired: Boolean(link.deal?.expiresAt && link.deal.expiresAt <= new Date()),
+        expired: Boolean(link.deal?.endsAt && link.deal.endsAt <= new Date()),
         templateConfigured: Boolean(link.trackingTemplate) }; }
       catch { return { invalidDestination: true }; }
     });
@@ -80,7 +80,8 @@ try {
       dirty: Boolean(execFileSync('git', ['-C', directory, 'status', '--porcelain'], { encoding: 'utf8' }).trim()),
       hasRootEnv: existsSync(`${directory}/.env`), hasLocalEnv: existsSync(`${directory}/.env.local`) }));
   }
-} catch {
+} catch (error) {
+  console.error(JSON.stringify({ errorType: error.name, code: error.code ?? null }));
   console.error('Read-only VPS audit failed; details suppressed to avoid leaking credentials. Check package/environment availability and schema locally.');
   process.exitCode = 1;
 } finally { await db.$disconnect(); }
