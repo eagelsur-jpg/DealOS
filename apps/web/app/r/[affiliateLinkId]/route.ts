@@ -1,22 +1,39 @@
 import { NextResponse } from 'next/server';
-import { AffiliateEngine, prisma } from '@dealos/database';
-
-const affiliate = new AffiliateEngine(prisma);
+import { assertSafeAffiliateDestination } from '@dealos/database';
 
 export async function GET(
   request: Request,
-  context: {
-    params: Promise<{ affiliateLinkId: string }>;
-  },
+  context: { params: Promise<{ affiliateLinkId: string }> },
 ) {
   const { affiliateLinkId } = await context.params;
-  const userAgent = request.headers.get('user-agent') ?? undefined;
-  const referrer = request.headers.get('referer') ?? undefined;
-  const tracked = await affiliate.trackClick(affiliateLinkId, {
-    // Forwarded IP headers are untrusted without an explicit proxy policy.
-    userAgent,
-    referrer
-  });
-
-  return NextResponse.redirect(tracked.redirectUrl, 302);
+  try {
+    const response = await fetch(
+      `${process.env.API_INTERNAL_URL ?? 'http://127.0.0.1:3004'}/r/${encodeURIComponent(affiliateLinkId)}`,
+      {
+        redirect: 'manual',
+        cache: 'no-store',
+        headers: {
+          'user-agent': request.headers.get('user-agent') ?? '',
+          referer: request.headers.get('referer') ?? '',
+        },
+      },
+    );
+    if (response.status === 302) {
+      return NextResponse.redirect(
+        assertSafeAffiliateDestination(response.headers.get('location') ?? ''),
+        302,
+      );
+    }
+    return NextResponse.json(
+      { error: 'Affiliate link unavailable' },
+      {
+        status: [400, 404, 429].includes(response.status) ? response.status : 503,
+        headers: response.headers.has('retry-after')
+          ? { 'Retry-After': response.headers.get('retry-after')! }
+          : {},
+      },
+    );
+  } catch {
+    return NextResponse.json({ error: 'Affiliate service unavailable' }, { status: 503 });
+  }
 }

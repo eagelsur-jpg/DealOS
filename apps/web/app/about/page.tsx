@@ -7,7 +7,7 @@ import { createPageMetadata } from '@/lib/metadata';
 export const metadata: Metadata = createPageMetadata({
   title: 'About',
   description: 'Learn about DealOS and our mission to build transparent shopping intelligence.',
-  path: '/about'
+  path: '/about',
 });
 
 export default function AboutPage() {
@@ -22,7 +22,7 @@ export default function AboutPage() {
         </div>
         <H1 className="text-4xl sm:text-5xl font-extrabold tracking-tight">About DealOS</H1>
         <Text className="text-lg text-muted-foreground leading-relaxed">
-          DealOS is an AI-driven shopping intelligence engine dedicated to consumer transparency, verified pricing history, and merchant integrity.
+          DealOS is a deal catalog with recorded prices, merchant listings, and affiliate links.
         </Text>
       </div>
 
@@ -31,9 +31,10 @@ export default function AboutPage() {
           <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-teal-500/10 text-teal-600 dark:text-teal-400">
             <TrendingDown className="h-5 w-5" />
           </div>
-          <h3 className="font-bold text-lg text-foreground">Verified Price Drops</h3>
+          <h3 className="font-bold text-lg text-foreground">Recorded Prices</h3>
           <MutedText className="text-xs leading-relaxed">
-            Our historical pricing telemetry tracks real price fluctuations, helping consumers avoid inflated fake discount baseline traps.
+            Price history shows stored observations. Confirm the latest prices on the merchant
+            website.
           </MutedText>
         </Card>
 
@@ -43,7 +44,8 @@ export default function AboutPage() {
           </div>
           <h3 className="font-bold text-lg text-foreground">Merchant Transparency</h3>
           <MutedText className="text-xs leading-relaxed">
-            Every deal and merchant listing features explicit affiliate disclosure, click auditing, and verified seller reputation metrics.
+            Outbound affiliate links include a disclosure. Recorded click counts are available;
+            seller reputation verification is not configured.
           </MutedText>
         </Card>
 
@@ -51,9 +53,10 @@ export default function AboutPage() {
           <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-teal-500/10 text-teal-600 dark:text-teal-400">
             <Bot className="h-5 w-5" />
           </div>
-          <h3 className="font-bold text-lg text-foreground">AI Deal Scoring</h3>
+          <h3 className="font-bold text-lg text-foreground">Deal Scoring</h3>
           <MutedText className="text-xs leading-relaxed">
-            Proprietary scoring algorithms aggregate historical discount magnitude, coupon validity, and merchant score to rank high-signal offers.
+            Listings use stored ranking scores. Automatic score recalculation is not currently
+            scheduled.
           </MutedText>
         </Card>
       </div>

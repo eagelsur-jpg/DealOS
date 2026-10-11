@@ -11,15 +11,14 @@ loadDotEnv({ path: join(currentDir, '../../.env'), override: false });
 
 const nextConfig: NextConfig = {
   outputFileTracingRoot: join(currentDir, '../../'),
-  transpilePackages: ['@dealos/ui', '@dealos/types', '@dealos/utils', '@dealos/ai', '@dealos/database'],
-  images: {
-    remotePatterns: [
-      {
-        protocol: 'https',
-        hostname: '**'
-      }
-    ]
-  }
+  transpilePackages: [
+    '@dealos/ui',
+    '@dealos/types',
+    '@dealos/utils',
+    '@dealos/ai',
+    '@dealos/database',
+  ],
+  images: { unoptimized: true },
 };
 
 export default nextConfig;

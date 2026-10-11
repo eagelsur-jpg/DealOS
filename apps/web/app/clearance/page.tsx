@@ -11,14 +11,14 @@ import { getClearanceListing } from '@/lib/server/catalog';
 export const metadata: Metadata = createPageMetadata({
   title: 'Clearance',
   description: 'Deep-discount clearance deals with 25%+ price cuts ranked by savings.',
-  path: '/clearance'
+  path: '/clearance',
 });
 
 export const revalidate = 180;
 export const dynamic = 'force-dynamic';
 
 export default async function ClearancePage({
-  searchParams
+  searchParams,
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
@@ -37,7 +37,8 @@ export default async function ClearancePage({
         </div>
         <H1>Clearance & Deep Discounts</H1>
         <MutedText className="text-base max-w-2xl">
-          Aggressive price cuts with at least 25% savings vs prior price. Ranked dynamically by discount magnitude and deal authenticity scores. ({listing.totalItems} total clearance items)
+          Aggressive price cuts with at least 25% savings vs prior price. Sorted by recorded
+          discount percentage. ({listing.totalItems} total clearance items)
         </MutedText>
       </div>
 

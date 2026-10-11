@@ -1,3 +1,4 @@
+import { prisma } from '@dealos/database';
 import { Search } from 'lucide-react';
 import { Container, H1, MutedText } from '@dealos/ui';
 import type { Metadata } from 'next';
@@ -9,14 +10,15 @@ import { absoluteUrl } from '@/lib/seo';
 
 export const metadata: Metadata = createPageMetadata({
   title: 'Search',
-  description: 'Search deals, merchants, categories, and coupons with autocomplete and instant filters.',
-  path: '/search'
+  description:
+    'Search deals, merchants, categories, and coupons with autocomplete and instant filters.',
+  path: '/search',
 });
 
 export const dynamic = 'force-dynamic';
 
 export default async function SearchPage({
-  searchParams
+  searchParams,
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
@@ -25,6 +27,14 @@ export default async function SearchPage({
   const category = typeof params.category === 'string' ? params.category : undefined;
   const merchant = typeof params.merchant === 'string' ? params.merchant : undefined;
 
+  const [categories, merchants] = await Promise.all([
+    prisma.category.findMany({ select: { slug: true, name: true }, orderBy: { name: 'asc' } }),
+    prisma.merchant.findMany({
+      where: { isActive: true },
+      select: { slug: true, name: true },
+      orderBy: { name: 'asc' },
+    }),
+  ]);
   return (
     <Container className="space-y-10 py-12">
       <JsonLd
@@ -32,7 +42,7 @@ export default async function SearchPage({
           '@context': 'https://schema.org',
           '@type': 'SearchResultsPage',
           name: 'DealOS Search',
-          url: absoluteUrl(`/search?q=${encodeURIComponent(q)}`)
+          url: absoluteUrl(`/search?q=${encodeURIComponent(q)}`),
         }}
       />
       <Breadcrumbs items={[{ label: 'Home', href: '/' }, { label: 'Search' }]} />
@@ -44,11 +54,18 @@ export default async function SearchPage({
         </div>
         <H1>Search Deal Catalog</H1>
         <MutedText className="text-base max-w-2xl">
-          Search products, verified merchants, categories, and active promo codes with live autocomplete and infinite scroll.
+          Search products, merchants, categories, and active promo codes with live autocomplete and
+          infinite scroll.
         </MutedText>
       </div>
 
-      <SearchExperience initialQuery={q} initialCategory={category} initialMerchant={merchant} />
+      <SearchExperience
+        initialQuery={q}
+        initialCategory={category}
+        initialMerchant={merchant}
+        categories={categories}
+        merchants={merchants}
+      />
     </Container>
   );
 }

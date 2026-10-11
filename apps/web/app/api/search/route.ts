@@ -11,20 +11,24 @@ const querySchema = z.object({
   sortField: z.enum(['createdAt', 'price', 'savings', 'score']).optional(),
   sortDirection: z.enum(['asc', 'desc']).optional(),
   category: z.string().optional(),
-  merchant: z.string().optional()
+  merchant: z.string().optional(),
 });
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
-  const parsed = querySchema.parse({
+  const validation = querySchema.safeParse({
     q: searchParams.get('q'),
     page: searchParams.get('page') ?? undefined,
     pageSize: searchParams.get('pageSize') ?? undefined,
     sortField: searchParams.get('sortField') ?? undefined,
     sortDirection: searchParams.get('sortDirection') ?? undefined,
     category: searchParams.get('category') ?? undefined,
-    merchant: searchParams.get('merchant') ?? undefined
+    merchant: searchParams.get('merchant') ?? undefined,
   });
+
+  if (!validation.success)
+    return NextResponse.json({ error: 'Invalid search input' }, { status: 400 });
+  const parsed = validation.data;
 
   const result = await getSearchDeals({
     query: parsed.q,
@@ -35,12 +39,12 @@ export async function GET(request: Request) {
         ? { field: parsed.sortField, direction: parsed.sortDirection }
         : undefined,
     category: parsed.category,
-    merchant: parsed.merchant
+    merchant: parsed.merchant,
   });
 
   return NextResponse.json(result, {
     headers: {
-      'Cache-Control': 's-maxage=60, stale-while-revalidate=120'
-    }
+      'Cache-Control': 's-maxage=60, stale-while-revalidate=120',
+    },
   });
 }

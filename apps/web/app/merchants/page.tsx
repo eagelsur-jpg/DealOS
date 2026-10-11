@@ -9,8 +9,8 @@ import { getMerchantsPageData } from '@/lib/server/catalog';
 
 export const metadata: Metadata = createPageMetadata({
   title: 'Merchants',
-  description: 'Browse verified partner merchants with active deal and coupon inventory.',
-  path: '/merchants'
+  description: 'Browse catalog merchants with active deal and coupon inventory.',
+  path: '/merchants',
 });
 
 export const revalidate = 900;
@@ -30,7 +30,8 @@ export default async function MerchantsPage() {
         </div>
         <H1>Trusted Merchants</H1>
         <MutedText className="text-base max-w-2xl">
-          Compare merchant reputation, live deal counts, coupon availability, and affiliate transparency standards across top retailers.
+          Compare merchant reputation, live deal counts, coupon availability, and affiliate
+          transparency standards across top retailers.
         </MutedText>
       </div>
 
@@ -73,7 +74,10 @@ export default async function MerchantsPage() {
           ))}
         </div>
       ) : (
-        <EmptyState title="No merchants found" message="Trusted merchant profiles will appear as catalog telemetry updates." />
+        <EmptyState
+          title="No merchants found"
+          message="Trusted merchant profiles will appear as catalog telemetry updates."
+        />
       )}
     </Container>
   );

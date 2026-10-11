@@ -3,7 +3,15 @@
 import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { BadgePercent, ExternalLink, Store, Ticket } from 'lucide-react';
-import { Button, Card, CardContent, CardFooter, CardHeader, CardTitle, MutedText } from '@dealos/ui';
+import {
+  Button,
+  Card,
+  CardContent,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+  MutedText,
+} from '@dealos/ui';
 import { calculateSavingsPercent, formatCurrency } from '@dealos/utils';
 import type { DealCardData } from '@/lib/server/catalog';
 import { ProductImage } from '@/components/product-image';
@@ -11,7 +19,9 @@ import { ProductImage } from '@/components/product-image';
 export const DealCard = ({ deal }: { deal: DealCardData }) => {
   const savingsPercent = calculateSavingsPercent(deal.previousPrice, deal.currentPrice);
   const hasDiscount = deal.previousPrice && savingsPercent > 0;
-  const savingsAmount = deal.previousPrice ? Number(deal.previousPrice) - Number(deal.currentPrice) : 0;
+  const savingsAmount = deal.previousPrice
+    ? Number(deal.previousPrice) - Number(deal.currentPrice)
+    : 0;
 
   return (
     <motion.div
@@ -56,10 +66,18 @@ export const DealCard = ({ deal }: { deal: DealCardData }) => {
           </div>
         </div>
 
+        {deal.isDemo && (
+          <p className="px-5 pt-3 text-xs text-amber-700 dark:text-amber-300">
+            Sample catalog listing — confirm with merchant
+          </p>
+        )}
         {/* Card Content Header */}
         <CardHeader className="p-5 pb-2 space-y-2">
           <CardTitle className="line-clamp-2 min-h-[3rem] text-base font-bold leading-snug tracking-tight">
-            <Link href={`/deals/${deal.slug}`} className="transition-colors hover:text-teal-600 dark:hover:text-teal-400">
+            <Link
+              href={`/deals/${deal.slug}`}
+              className="transition-colors hover:text-teal-600 dark:hover:text-teal-400"
+            >
               {deal.title}
             </Link>
           </CardTitle>
@@ -72,16 +90,21 @@ export const DealCard = ({ deal }: { deal: DealCardData }) => {
           {/* Pricing Block */}
           <div className="rounded-xl border border-border/50 bg-secondary/40 p-3.5 backdrop-blur-xs transition-colors group-hover:border-teal-500/20 group-hover:bg-secondary/70">
             <div className="flex items-baseline justify-between">
-              <p className="text-2xl font-extrabold tracking-tight text-foreground">{formatCurrency(deal.currentPrice)}</p>
+              <p className="text-2xl font-extrabold tracking-tight text-foreground">
+                {formatCurrency(deal.currentPrice, deal.currency)}
+              </p>
               {hasDiscount && savingsAmount > 0 ? (
                 <span className="rounded-md bg-teal-500/10 px-2 py-0.5 text-[11px] font-bold text-teal-600 dark:text-teal-400">
-                  Save {formatCurrency(savingsAmount)}
+                  Save {formatCurrency(savingsAmount, deal.currency)}
                 </span>
               ) : null}
             </div>
             {deal.previousPrice ? (
               <MutedText className="text-xs mt-0.5">
-                Was <span className="line-through">{formatCurrency(deal.previousPrice)}</span>
+                Was{' '}
+                <span className="line-through">
+                  {formatCurrency(deal.previousPrice, deal.currency)}
+                </span>
               </MutedText>
             ) : null}
           </div>
@@ -89,8 +112,12 @@ export const DealCard = ({ deal }: { deal: DealCardData }) => {
           {/* Coupon Code Block */}
           {deal.couponCode ? (
             <div className="flex items-center justify-between rounded-xl border border-dashed border-border/80 bg-background/60 px-3 py-1.5 text-xs backdrop-blur-xs">
-              <span className="font-semibold text-muted-foreground uppercase tracking-wider text-[10px]">Code</span>
-              <span className="font-mono font-bold text-foreground select-all">{deal.couponCode}</span>
+              <span className="font-semibold text-muted-foreground uppercase tracking-wider text-[10px]">
+                Code
+              </span>
+              <span className="font-mono font-bold text-foreground select-all">
+                {deal.couponCode}
+              </span>
             </div>
           ) : null}
         </CardContent>
@@ -103,7 +130,12 @@ export const DealCard = ({ deal }: { deal: DealCardData }) => {
             </Button>
           </Link>
           {deal.affiliateLinkId ? (
-            <Link href={`/r/${deal.affiliateLinkId}`} target="_blank" rel="nofollow sponsored noopener" className="w-full">
+            <Link
+              href={`/r/${deal.affiliateLinkId}`}
+              target="_blank"
+              rel="nofollow sponsored noopener"
+              className="w-full"
+            >
               <Button variant="brand" size="sm" className="w-full gap-1 text-xs font-semibold">
                 Shop now
                 <ExternalLink className="h-3 w-3 opacity-80" aria-hidden="true" />
