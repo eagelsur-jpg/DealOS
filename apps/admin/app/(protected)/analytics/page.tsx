@@ -9,8 +9,8 @@ export default async function AnalyticsPage() {
         {data.clicks.toLocaleString()} recorded clicks across {data.merchants} merchants.
       </p>
       <p>
-        These counts include automated and repeated requests. CTR and conversion rate are
-        unavailable.
+        Known seed and verification clicks are excluded ({data.excludedSampleClicks} preserved records).
+        Other automated and repeated requests may remain. CTR and conversion rate are unavailable.
       </p>
       <div className="overflow-x-auto">
         <table className="w-full text-left">
@@ -32,7 +32,7 @@ export default async function AnalyticsPage() {
           </tbody>
         </table>
       </div>
-      {!data.topDeals.length && <p>No deals recorded.</p>}
+      {!data.topDeals.length && <p>No non-sample deal clicks recorded.</p>}
     </section>
   );
 }

@@ -13,7 +13,7 @@ export default async function DashboardPage() {
     <div className="space-y-6">
       <H2>Operations Dashboard</H2>
       <MutedText>
-        Current database totals. Clicks include all recorded requests; they are not unique visitors.
+        Current database totals. Clicks exclude known seed and verification agents; they are not unique visitors.
       </MutedText>
       <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {metrics.map((metric) => (

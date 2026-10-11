@@ -33,8 +33,11 @@ const switchCurrent = path => {
 };
 let switched = false;
 const previous = existsSync('/root/DealOS-current') ? readlinkSync('/root/DealOS-current') : '/root/DealOS-review';
+const previousDeployment = existsSync('/root/DealOS-backups/deployment.json')
+  ? readFileSync('/root/DealOS-backups/deployment.json') : undefined;
 try {
   assert(!existsSync(release), 'Release already exists: review evidence before redeploy');
+  assert(existsSync('/root/DealOS-browser-tools/node_modules/playwright/package.json'), 'Install the isolated reviewed browser tooling before deployment');
   mkdirSync('/root/DealOS-backups',{recursive:true,mode:0o700});
   mkdirSync(release,{recursive:true,mode:0o700});
   const archive = `/root/DealOS-backups/source-${sha}.tar`;
@@ -74,11 +77,14 @@ try {
   run('pnpm',['--filter','@dealos/api','exec','tsx','scripts/verify-live.ts'],release,verificationEnv);
   for(const app of ['api','web','admin']) run('systemctl',['is-active',`dealos-${app}.service`],release);
   writeFileSync('/root/DealOS-backups/deployment.json',JSON.stringify({sha,release,previous,services:['dealos-api','dealos-web','dealos-admin'],at:new Date().toISOString()},null,2),{mode:0o600});
+  // Browser acceptance runs on every cutover, with private evidence and rollback on failure.
+  run(node,['scripts/ops/browser-acceptance.mjs'],release,{...buildEnv,GITHUB_WORKSPACE:release},300000);
   console.log(JSON.stringify({deploymentSha:sha,release,readiness:200,crud:'passed and verification rows archived',services:'active',unrelatedServicesModified:false}));
 } catch(error) {
   console.error(JSON.stringify({failed:true,instruction:error.constructor===Error?error.message:undefined,code:error.code}));
   if(switched) {
     switchCurrent(previous);
+    if(previousDeployment) writeFileSync('/root/DealOS-backups/deployment.json',previousDeployment,{mode:0o600});
     for(const app of ['api','web','admin']) spawnSync('systemctl',['restart',`dealos-${app}.service`]);
     console.error('DealOS current release reverted; verify previous readiness before retrying');
   }
