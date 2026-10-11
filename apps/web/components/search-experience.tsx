@@ -173,12 +173,12 @@ export const SearchExperience = ({
     <section className="space-y-8">
       {/* Floating Filter Card Container */}
       <div className="rounded-3xl border border-border/60 bg-card/90 p-6 shadow-xl backdrop-blur-md space-y-5">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-2 text-foreground font-bold">
             <SlidersHorizontal className="h-4.5 w-4.5 text-teal-600 dark:text-teal-400" />
             <span>Search & Filter Engine</span>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex min-w-0 flex-wrap items-center gap-2">
             <span className="text-xs text-muted-foreground font-medium">Sort by</span>
             <select
               className="rounded-xl border border-border/80 bg-secondary/50 px-3 py-1.5 text-xs font-semibold text-foreground focus:outline-none focus:ring-2 focus:ring-teal-500/50"
