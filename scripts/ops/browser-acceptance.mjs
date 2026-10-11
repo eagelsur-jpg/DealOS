@@ -6,6 +6,7 @@ const browser = await chromium.launch({ headless:true });
 const deployment=JSON.parse((await import('node:fs')).readFileSync('/root/DealOS-backups/deployment.json','utf8'));
 const output = `/root/DealOS-browser-evidence/${deployment.sha}-${process.env.GITHUB_RUN_ID}`;
 mkdirSync(output,{recursive:true,mode:0o700});
+writeFileSync(`${process.env.GITHUB_WORKSPACE}/browser-evidence-path`,output);
 const failures=[];
 const results=[];
 try {
@@ -34,6 +35,8 @@ try {
       if(path===expiredPath) {
         if(await page.locator('a[href^="/r/"]').count()) throw new Error('Expired deal exposed affiliate CTA');
         await page.getByText('This offer has expired or is unavailable.',{exact:true}).waitFor({state:'visible'});
+        const structured=await page.locator('script[type="application/ld+json"]').allTextContents();
+        if(structured.some(text=>{const data=JSON.parse(text);return data['@type']==='Offer'||(data['@type']==='Product'&&data.offers);})) throw new Error('Expired deal emitted active Offer structured data');
         await page.getByText('Image unavailable',{exact:true}).first().waitFor({state:'visible'});
       }
       await page.screenshot({path:`${output}/web-${width}-${index}.png`,fullPage:true});
