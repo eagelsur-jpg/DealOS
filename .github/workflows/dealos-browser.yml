@@ -24,9 +24,6 @@ jobs:
           /root/DealOS-browser-tools/node_modules/.bin/playwright install chromium
       - name: Verify real pages across five viewport widths
         run: node scripts/ops/browser-acceptance.mjs
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+      - name: Confirm private VPS evidence location
         if: always()
-        with:
-          name: dealos-browser-evidence
-          path: browser-evidence
-          retention-days: 7
+        run: test -s browser-evidence-path && cat browser-evidence-path
