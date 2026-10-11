@@ -19,7 +19,7 @@ try {
   try { hba=await db.$queryRawUnsafe(`SELECT auth_method,count(*)::int AS rules,bool_or(address IN ('0.0.0.0','::')) AS has_any_public_address FROM pg_hba_file_rules WHERE type IN ('host','hostssl','hostnossl') GROUP BY auth_method`); } catch(error) { hba={unavailable:true,sqlState:error.meta?.code}; }
   let postgresHostEvidence;
   try {
-    const sql=`SELECT json_build_object('publicAddressRules',count(*) FILTER(WHERE address IN ('0.0.0.0','::')),'publicTrustRules',count(*) FILTER(WHERE address IN ('0.0.0.0','::') AND auth_method='trust'),'passwordMethods',array_agg(DISTINCT auth_method)) FROM pg_hba_file_rules WHERE type IN ('host','hostssl','hostnossl')`;
+    const sql=`SELECT json_build_object('publicAddressRules',count(*) FILTER(WHERE address IN ('0.0.0.0','::')),'nonLoopbackHostRules',count(*) FILTER(WHERE address NOT IN ('127.0.0.1','::1')),'publicTrustRules',count(*) FILTER(WHERE address IN ('0.0.0.0','::') AND auth_method='trust'),'passwordMethods',array_agg(DISTINCT auth_method)) FROM pg_hba_file_rules WHERE type IN ('host','hostssl','hostnossl')`;
     postgresHostEvidence=JSON.parse(execFileSync('runuser',['-u','postgres','--','psql','-X','-d','dealos','-t','-A','-c',sql],{encoding:'utf8',stdio:['ignore','pipe','pipe']}).trim());
   } catch { postgresHostEvidence={unavailable:true}; }
   let firewall;
@@ -30,9 +30,13 @@ try {
     if(existsSync(path) && lstatSync(path).isFile() && lstatSync(path).uid===0) {chmodSync(path,0o600);protectedEnvFiles++;}
   }
   const lifecycle=await db.$queryRawUnsafe(`SELECT count(*)::int AS total_deals,count(*) FILTER(WHERE status::text='ACTIVE' AND NOT "isHidden" AND ("startsAt" IS NULL OR "startsAt"<=now()) AND ("endsAt" IS NULL OR "endsAt">now()))::int AS time_eligible_deals FROM "Deal"`);
+  const deployment=JSON.parse(readFileSync('/root/DealOS-backups/deployment.json','utf8'));
+  const diagnostics=readFileSync(`/root/DealOS-backups/production-${deployment.sha}.log`,'utf8').replace(/\x1b\[[0-9;]*m/g,'');
+  const testsPassed=Array.from(diagnostics.matchAll(/Tests\s+(\d+)\s+passed/g)).reduce((sum,match)=>sum+Number(match[1]),0);
+  const runtimeChecks=diagnostics.split('\n').filter(line=>/^PASS (\/|Web |Admin |CRUD|logout)/.test(line));
   const serviceStats=[];
   for(const app of ['api','web','admin']) serviceStats.push(execFileSync('systemctl',['show',`dealos-${app}.service`,'--property=ActiveState,SubState,NRestarts,MainPID,ExecMainStatus,WorkingDirectory'],{encoding:'utf8'}));
-  console.log(JSON.stringify({deployment:JSON.parse(readFileSync('/root/DealOS-backups/deployment.json','utf8')),serviceStats,
+  console.log(JSON.stringify({deployment,testsPassed,runtimeChecks,serviceStats,
     adminConfig:{passwordMinimumLength:admin.ADMIN_PASSWORD?.length>=12,knownDemoPassword:admin.ADMIN_PASSWORD==='ChangeThisPassword123!',jwtMinimumLength:admin.ADMIN_JWT_SECRET?.length>=32,productionSecureCookie:true},
     affiliate:{invalidExampleLinksRejected:rejectedExamples,noInvalidClicksCreated:true,realLinkAcceptance:'BLOCKED: no reviewed real eligible link configured'},lifecycle,postgresAuthRules:hba,postgresHostEvidence,firewall,protectedEnvFiles,
     postgresNetworkingChanged:false,redisFlushed:false,unrelatedProjectsModified:false}));
