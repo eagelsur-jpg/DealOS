@@ -4,6 +4,16 @@ Date: 2026-10-11. Source baseline: `140bf26c232b8d93fbdde6336fd7d4618537f9d3`, f
 
 **Status: implementation and local checks complete; production acceptance remains open. DealOS is not declared finished.** No VPS login, live database inspection, live CRUD, real affiliate destination, or mobile browser verification was possible from this environment. No VPS service, Nginx configuration, database data, or `/root/resether-ai` was modified.
 
+## Operational continuation (2026-10-11)
+
+The owner reports that the reviewed implementation `ee0677bebaf5aa5fd095d4bdd7226b78b2abd5d1` passed typecheck, lint, 55 tests and a production-mode build on the real VPS. The owner also reports readiness with real PostgreSQL/Redis, Web pages, Admin protected routes and isolated CRUD, with verification records archived and existing catalog untouched. These are owner-reported VPS results; the earlier local verification section remains historical.
+
+A read-only self-hosted workflow was added on the reviewed branch. Evidence commit: `96c9e233d3255ceecf05a8d118b6a49bd0e5f40a`. It reads PostgreSQL catalogs and migration history inside a read-only transaction, aggregates sample/image counts, checks DealOS HTTP routes, and lists only relevant socket addresses and DealOS unit names. It never migrates, reconciles history, changes catalog data, installs packages or restarts services. Workflow run https://github.com/eagelsur-jpg/DealOS/actions/runs/38102093819 is awaiting execution; no runner evidence or deployment SHA has yet been independently collected.
+
+Migration `20260925000000_phase2a_data_contracts` is reported missing from applied history. Its exact effects requiring comparison are: NewsletterStatus enum values/order; every NewsletterSubscription column/type/nullability/default/timestamp precision; newsletter primary key, unique email and status/createdAt index; unique CommissionEvent affiliateLinkId/orderId index; validated Review rating CHECK. Duplicate order-pair and invalid-rating counts must also be zero. Compare index validity, uniqueness, predicates and key order, not merely names. History checksum must match repository SQL. Do not run migrate deploy; only consider migrate resolve --applied after exact effects have been evidenced and no unresolved failed history remains. If an effect differs, stop for schema-change approval.
+
+Remaining acceptance: reviewed real active affiliate link with both redirect destination and persisted click verified; browser/mobile at 320/375/768/1024/1440; exact process manager/deployment identity; Redis private bindings and PostgreSQL exposure/dependencies; domain ownership/DNS/HTTPS. The owner has not selected domains, so no reverse proxy changes are authorized by a specific domain decision yet. Ports 3000/resether-ai and 3001/pokemon-store and their files/services remain excluded.
+
 ## 1. Architecture and current implementation
 
 | Component           | Actual implementation                                                                                                                                                         |
