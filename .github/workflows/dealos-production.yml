@@ -2,7 +2,15 @@ name: DealOS production build and guarded cutover
 on:
   push:
     branches: [codex/dealos-production-audit]
-    paths: ['.github/workflows/dealos-production.yml', 'scripts/ops/deploy-production.mjs']
+    paths:
+      - 'apps/**'
+      - 'packages/**'
+      - 'deploy/systemd/**'
+      - 'scripts/ops/deploy-production.mjs'
+      - 'scripts/ops/start-service.mjs'
+      - 'scripts/ops/production-env.mjs'
+      - 'scripts/ops/browser-acceptance.mjs'
+      - '.github/workflows/dealos-production.yml'
 permissions:
   contents: read
 concurrency:

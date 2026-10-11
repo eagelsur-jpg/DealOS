@@ -1,8 +1,5 @@
 name: DealOS live browser acceptance
-on:
-  push:
-    branches: [codex/dealos-production-audit]
-    paths: ['.github/workflows/dealos-browser.yml', 'scripts/ops/browser-acceptance.mjs']
+on: workflow_dispatch
 permissions:
   contents: read
 concurrency:
