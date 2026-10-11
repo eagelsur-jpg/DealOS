@@ -15,3 +15,9 @@ coverage/
 *.tsbuildinfo
 
 node-compile-cache/
+
+# Legacy generated artifacts must never shadow TypeScript source
+/packages/utils/src/cache.js
+/packages/utils/src/cache.js.map
+/packages/utils/src/cache.d.ts
+/packages/utils/src/cache.d.ts.map

@@ -1,0 +1,21 @@
+name: DealOS read-only VPS evidence
+on:
+  push:
+    branches: [codex/dealos-production-audit]
+    paths: ['scripts/ops/audit-vps.mjs', '.github/workflows/dealos-vps-audit.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: dealos-vps-operations
+  cancel-in-progress: false
+jobs:
+  audit:
+    runs-on: [self-hosted, Linux, X64]
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - name: Read-only schema, readiness and DealOS socket evidence
+        run: node scripts/ops/audit-vps.mjs

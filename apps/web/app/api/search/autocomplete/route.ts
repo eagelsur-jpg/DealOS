@@ -6,20 +6,24 @@ export const dynamic = 'force-dynamic';
 
 const schema = z.object({
   q: z.string().min(1),
-  limit: z.coerce.number().int().positive().max(20).default(8)
+  limit: z.coerce.number().int().positive().max(20).default(8),
 });
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
-  const parsed = schema.parse({
+  const validation = schema.safeParse({
     q: searchParams.get('q'),
-    limit: searchParams.get('limit') ?? undefined
+    limit: searchParams.get('limit') ?? undefined,
   });
 
+  if (!validation.success)
+    return NextResponse.json({ error: 'Invalid search input' }, { status: 400 });
+  const parsed = validation.data;
   const result = await getAutocomplete(parsed.q, parsed.limit);
+
   return NextResponse.json(result, {
     headers: {
-      'Cache-Control': 's-maxage=30, stale-while-revalidate=60'
-    }
+      'Cache-Control': 's-maxage=30, stale-while-revalidate=60',
+    },
   });
 }

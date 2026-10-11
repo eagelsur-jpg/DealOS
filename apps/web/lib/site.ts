@@ -1,11 +1,10 @@
 export const siteConfig = {
   name: 'DealOS',
-  description:
-    'AI-powered shopping intelligence platform for verified deals, coupons, price tracking, and buying confidence.',
+  description: 'Browse deals, coupons, merchants, and recorded prices.',
   url: process.env.NEXT_PUBLIC_SITE_URL ?? 'https://dealos.ai',
   defaultLocale: 'en_US',
   twitterHandle: '@dealos',
-  contactEmail: 'support@dealos.ai'
+  contactEmail: process.env.NEXT_PUBLIC_CONTACT_EMAIL ?? 'support@dealos.ai',
 } as const;
 
 export const primaryNavItems = [
@@ -14,5 +13,5 @@ export const primaryNavItems = [
   { href: '/clearance', label: 'Clearance' },
   { href: '/categories', label: 'Categories' },
   { href: '/merchants', label: 'Merchants' },
-  { href: '/search', label: 'Search' }
+  { href: '/search', label: 'Search' },
 ] as const;

@@ -10,6 +10,7 @@ import { trackEvent } from '@/lib/analytics';
 import { Skeleton } from '@dealos/ui';
 
 interface SearchItem {
+  currency: string;
   slug: string;
   title: string;
   merchantName: string;
@@ -33,7 +34,7 @@ const sortOptions = [
   { value: 'score-desc', label: 'Best ranked' },
   { value: 'createdAt-desc', label: 'Newest first' },
   { value: 'price-asc', label: 'Price: Low to high' },
-  { value: 'price-desc', label: 'Price: High to low' }
+  { value: 'price-desc', label: 'Price: High to low' },
 ];
 
 const parseSort = (value: string): { field?: string; direction?: string } => {
@@ -48,11 +49,15 @@ const parseSort = (value: string): { field?: string; direction?: string } => {
 export const SearchExperience = ({
   initialQuery,
   initialCategory,
-  initialMerchant
+  initialMerchant,
+  categories,
+  merchants,
 }: {
   initialQuery: string;
   initialCategory?: string;
   initialMerchant?: string;
+  categories: Array<{ slug: string; name: string }>;
+  merchants: Array<{ slug: string; name: string }>;
 }) => {
   const [query, setQuery] = useState(initialQuery);
   const [category, setCategory] = useState(initialCategory ?? '');
@@ -64,6 +69,7 @@ export const SearchExperience = ({
   const [loading, setLoading] = useState(false);
   const [autocomplete, setAutocomplete] = useState<AutocompleteItem[]>([]);
   const [errorMessage, setErrorMessage] = useState('');
+  const searchSequence = useRef(0);
   const sentinelRef = useRef<HTMLDivElement | null>(null);
 
   const canLoadMore = page < totalPages && !loading;
@@ -71,7 +77,9 @@ export const SearchExperience = ({
 
   const fetchSearch = useCallback(
     async (nextPage: number, append: boolean) => {
+      const sequence = ++searchSequence.current;
       if (!query.trim()) {
+        setLoading(false);
         setItems([]);
         setTotalPages(1);
         setPage(1);
@@ -82,7 +90,7 @@ export const SearchExperience = ({
       const searchParams = new URLSearchParams({
         q: query,
         page: String(nextPage),
-        pageSize: '12'
+        pageSize: '12',
       });
       if (field && direction) {
         searchParams.set('sortField', field);
@@ -96,12 +104,14 @@ export const SearchExperience = ({
       }
 
       const response = await fetch(`/api/search?${searchParams.toString()}`);
+      if (sequence !== searchSequence.current) return;
       if (!response.ok) {
         setErrorMessage('Search request failed. Please try again.');
         setLoading(false);
         return;
       }
       const payload = (await response.json()) as SearchPayload;
+      if (sequence !== searchSequence.current) return;
       setErrorMessage('');
       setItems((current) => (append ? [...current, ...payload.items] : payload.items));
       setPage(payload.page);
@@ -126,7 +136,10 @@ export const SearchExperience = ({
 
     const timeout = setTimeout(() => {
       fetch(`/api/search/autocomplete?q=${encodeURIComponent(query)}&limit=6`)
-        .then((response) => response.json() as Promise<AutocompleteItem[]>)
+        .then((response) => {
+          if (!response.ok) throw new Error('Suggestions unavailable');
+          return response.json() as Promise<AutocompleteItem[]>;
+        })
         .then((payload) => setAutocomplete(payload))
         .catch((error: unknown) => {
           setAutocomplete([]);
@@ -160,12 +173,12 @@ export const SearchExperience = ({
     <section className="space-y-8">
       {/* Floating Filter Card Container */}
       <div className="rounded-3xl border border-border/60 bg-card/90 p-6 shadow-xl backdrop-blur-md space-y-5">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-2 text-foreground font-bold">
             <SlidersHorizontal className="h-4.5 w-4.5 text-teal-600 dark:text-teal-400" />
             <span>Search & Filter Engine</span>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex min-w-0 flex-wrap items-center gap-2">
             <span className="text-xs text-muted-foreground font-medium">Sort by</span>
             <select
               className="rounded-xl border border-border/80 bg-secondary/50 px-3 py-1.5 text-xs font-semibold text-foreground focus:outline-none focus:ring-2 focus:ring-teal-500/50"
@@ -194,7 +207,9 @@ export const SearchExperience = ({
                   if (event.key === 'Enter') {
                     trackEvent('search_submit', { query });
                     fetchSearch(1, false).catch((error: unknown) => {
-                      setErrorMessage(error instanceof Error ? error.message : 'Search request failed.');
+                      setErrorMessage(
+                        error instanceof Error ? error.message : 'Search request failed.',
+                      );
                     });
                   }
                 }}
@@ -213,7 +228,9 @@ export const SearchExperience = ({
                   exit={{ opacity: 0, y: 4 }}
                   className="absolute z-20 mt-2 w-full rounded-2xl border border-border/80 bg-card/95 p-2 shadow-2xl backdrop-blur-xl"
                 >
-                  <p className="px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Suggestions</p>
+                  <p className="px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                    Suggestions
+                  </p>
                   {autocomplete.map((item) => (
                     <button
                       key={`${item.type}-${item.value}`}
@@ -221,7 +238,10 @@ export const SearchExperience = ({
                       className="flex w-full items-center justify-between rounded-xl px-3 py-2 text-left text-sm text-foreground transition-colors hover:bg-secondary"
                       onClick={() => {
                         setQuery(item.label);
-                        trackEvent('search_autocomplete_click', { type: item.type, value: item.value });
+                        trackEvent('search_autocomplete_click', {
+                          type: item.type,
+                          value: item.value,
+                        });
                       }}
                     >
                       <span className="font-medium">{item.label}</span>
@@ -237,24 +257,36 @@ export const SearchExperience = ({
 
           <div className="relative">
             <Tag className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              placeholder="Category slug"
+            <select
+              aria-label="Category"
+              className="w-full rounded border p-3 pl-10"
               value={category}
-              className="pl-10 h-11 rounded-xl border-border/80 bg-background/60 focus-visible:ring-2 focus-visible:ring-teal-500/50"
               onChange={(event) => setCategory(event.target.value)}
-              aria-label="Filter by category slug"
-            />
+            >
+              <option value="">All categories</option>
+              {categories.map((item) => (
+                <option key={item.slug} value={item.slug}>
+                  {item.name}
+                </option>
+              ))}
+            </select>
           </div>
 
           <div className="relative">
             <Store className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              placeholder="Merchant slug"
+            <select
+              aria-label="Merchant"
+              className="w-full rounded border p-3 pl-10"
               value={merchant}
-              className="pl-10 h-11 rounded-xl border-border/80 bg-background/60 focus-visible:ring-2 focus-visible:ring-teal-500/50"
               onChange={(event) => setMerchant(event.target.value)}
-              aria-label="Filter by merchant slug"
-            />
+            >
+              <option value="">All merchants</option>
+              {merchants.map((item) => (
+                <option key={item.slug} value={item.slug}>
+                  {item.name}
+                </option>
+              ))}
+            </select>
           </div>
         </div>
 
@@ -294,9 +326,12 @@ export const SearchExperience = ({
           <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-teal-500/10 text-teal-600 dark:text-teal-400">
             <Filter className="h-6 w-6" />
           </div>
-          <h3 className="text-xl font-bold tracking-tight text-foreground">No matching deals found</h3>
+          <h3 className="text-xl font-bold tracking-tight text-foreground">
+            No matching deals found
+          </h3>
           <MutedText className="mt-1 max-w-sm mx-auto text-xs">
-            Try adjusting your search terms or clearing your category and merchant filters to see more results.
+            Try adjusting your search terms or clearing your category and merchant filters to see
+            more results.
           </MutedText>
         </div>
       ) : null}
@@ -312,7 +347,10 @@ export const SearchExperience = ({
             <Card className="group flex h-full flex-col justify-between rounded-2xl border border-border/60 bg-card/80 p-5 shadow-2xs transition-all duration-200 hover:-translate-y-1 hover:border-teal-500/40 hover:shadow-lg">
               <CardHeader className="p-0 space-y-1.5">
                 <CardTitle className="text-base font-bold leading-snug">
-                  <Link href={`/deals/${item.slug}`} className="transition-colors hover:text-teal-600 dark:hover:text-teal-400">
+                  <Link
+                    href={`/deals/${item.slug}`}
+                    className="transition-colors hover:text-teal-600 dark:hover:text-teal-400"
+                  >
                     {item.title}
                   </Link>
                 </CardTitle>
@@ -320,11 +358,22 @@ export const SearchExperience = ({
               </CardHeader>
               <CardContent className="p-0 pt-4 flex items-baseline justify-between">
                 <div>
-                  <p className="text-xl font-extrabold tracking-tight text-foreground">{formatCurrency(item.currentPrice)}</p>
-                  {item.previousPrice ? <MutedText className="text-xs">Was <span className="line-through">{formatCurrency(item.previousPrice)}</span></MutedText> : null}
+                  <p className="text-xl font-extrabold tracking-tight text-foreground">
+                    {formatCurrency(item.currentPrice, item.currency)}
+                  </p>
+                  {item.previousPrice ? (
+                    <MutedText className="text-xs">
+                      Was{' '}
+                      <span className="line-through">
+                        {formatCurrency(item.previousPrice, item.currency)}
+                      </span>
+                    </MutedText>
+                  ) : null}
                 </div>
                 <Link href={`/deals/${item.slug}`}>
-                  <Button variant="outline" size="sm" className="text-xs">View</Button>
+                  <Button variant="outline" size="sm" className="text-xs">
+                    View
+                  </Button>
                 </Link>
               </CardContent>
             </Card>
@@ -333,8 +382,12 @@ export const SearchExperience = ({
       </div>
 
       <div ref={sentinelRef} className="h-6" />
-      {loading && items.length > 0 ? <MutedText className="text-center text-xs">Loading more deals…</MutedText> : null}
-      {errorMessage ? <MutedText className="text-center text-xs text-rose-500">{errorMessage}</MutedText> : null}
+      {loading && items.length > 0 ? (
+        <MutedText className="text-center text-xs">Loading more deals…</MutedText>
+      ) : null}
+      {errorMessage ? (
+        <MutedText className="text-center text-xs text-rose-500">{errorMessage}</MutedText>
+      ) : null}
     </section>
   );
 };

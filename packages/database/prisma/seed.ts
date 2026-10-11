@@ -1,19 +1,29 @@
 import { hashPassword } from '@dealos/utils';
-import { PrismaClient, AffiliateNetwork, DealStatus, AlertType, CommissionStatus, UserRole } from '@prisma/client';
+import {
+  PrismaClient,
+  AffiliateNetwork,
+  DealStatus,
+  AlertType,
+  CommissionStatus,
+  UserRole,
+} from '@prisma/client';
 
 const prisma = new PrismaClient();
 
 async function main() {
+  if (process.env.NODE_ENV === 'production' || process.env.ALLOW_DEMO_SEED !== 'true') {
+    throw new Error('Demo seed disabled. Use only an isolated database with ALLOW_DEMO_SEED=true.');
+  }
   const electronics = await prisma.category.upsert({
     where: { slug: 'electronics' },
     update: { name: 'Electronics' },
-    create: { name: 'Electronics', slug: 'electronics' }
+    create: { name: 'Electronics', slug: 'electronics' },
   });
 
   const home = await prisma.category.upsert({
     where: { slug: 'home-kitchen' },
     update: { name: 'Home & Kitchen' },
-    create: { name: 'Home & Kitchen', slug: 'home-kitchen' }
+    create: { name: 'Home & Kitchen', slug: 'home-kitchen' },
   });
 
   const adminUser = await prisma.user.upsert({
@@ -21,14 +31,14 @@ async function main() {
     update: {
       name: 'DealOS Admin',
       role: UserRole.ADMIN,
-      password: hashPassword('ChangeThisPassword123!')
+      password: hashPassword('ChangeThisPassword123!'),
     },
     create: {
       email: 'admin@dealos.ai',
       name: 'DealOS Admin',
       role: UserRole.ADMIN,
-      password: hashPassword('ChangeThisPassword123!')
-    }
+      password: hashPassword('ChangeThisPassword123!'),
+    },
   });
 
   const member = await prisma.user.upsert({
@@ -36,36 +46,44 @@ async function main() {
     update: {
       name: 'DealOS Member',
       role: UserRole.MEMBER,
-      password: hashPassword('ChangeThisPassword123!')
+      password: hashPassword('ChangeThisPassword123!'),
     },
     create: {
       email: 'member@dealos.ai',
       name: 'DealOS Member',
       role: UserRole.MEMBER,
-      password: hashPassword('ChangeThisPassword123!')
-    }
+      password: hashPassword('ChangeThisPassword123!'),
+    },
   });
 
   const amazon = await prisma.merchant.upsert({
     where: { slug: 'amazon' },
-    update: { name: 'Amazon', websiteUrl: 'https://www.amazon.com', affiliateNetwork: AffiliateNetwork.AMAZON },
+    update: {
+      name: 'Amazon',
+      websiteUrl: 'https://www.amazon.com',
+      affiliateNetwork: AffiliateNetwork.AMAZON,
+    },
     create: {
       name: 'Amazon',
       slug: 'amazon',
       websiteUrl: 'https://www.amazon.com',
-      affiliateNetwork: AffiliateNetwork.AMAZON
-    }
+      affiliateNetwork: AffiliateNetwork.AMAZON,
+    },
   });
 
   const bestBuy = await prisma.merchant.upsert({
     where: { slug: 'best-buy' },
-    update: { name: 'Best Buy', websiteUrl: 'https://www.bestbuy.com', affiliateNetwork: AffiliateNetwork.IMPACT },
+    update: {
+      name: 'Best Buy',
+      websiteUrl: 'https://www.bestbuy.com',
+      affiliateNetwork: AffiliateNetwork.IMPACT,
+    },
     create: {
       name: 'Best Buy',
       slug: 'best-buy',
       websiteUrl: 'https://www.bestbuy.com',
-      affiliateNetwork: AffiliateNetwork.IMPACT
-    }
+      affiliateNetwork: AffiliateNetwork.IMPACT,
+    },
   });
 
   const macbook = await prisma.product.upsert({
@@ -76,8 +94,8 @@ async function main() {
       slug: 'macbook-pro-14-m4',
       description: 'Apple MacBook Pro 14-inch with M4 chip.',
       categoryId: electronics.id,
-      imageUrl: 'https://example.com/macbook.jpg'
-    }
+      imageUrl: 'https://example.com/macbook.jpg',
+    },
   });
 
   const headphones = await prisma.product.upsert({
@@ -88,8 +106,8 @@ async function main() {
       slug: 'sony-wh-1000xm5',
       description: 'Premium noise-canceling headphones.',
       categoryId: electronics.id,
-      imageUrl: 'https://example.com/sony-xm5.jpg'
-    }
+      imageUrl: 'https://example.com/sony-xm5.jpg',
+    },
   });
 
   const vacuum = await prisma.product.upsert({
@@ -100,11 +118,11 @@ async function main() {
       slug: 'dyson-v15-detect',
       description: 'Cordless vacuum with laser detection.',
       categoryId: home.id,
-      imageUrl: 'https://example.com/dyson-v15.jpg'
-    }
+      imageUrl: 'https://example.com/dyson-v15.jpg',
+    },
   });
 
-  const macbookDeal = await prisma.deal.upsert({
+  await prisma.deal.upsert({
     where: { slug: 'macbook-pro-14-discount' },
     update: {
       title: 'MacBook Pro 14" - 15% off',
@@ -112,7 +130,7 @@ async function main() {
       previousPrice: '1999.00',
       status: DealStatus.ACTIVE,
       isFeatured: true,
-      score: 96
+      score: 96,
     },
     create: {
       slug: 'macbook-pro-14-discount',
@@ -126,8 +144,8 @@ async function main() {
       isFeatured: true,
       score: 96,
       startsAt: new Date(Date.now() - 1000 * 60 * 60 * 24),
-      endsAt: new Date(Date.now() + 1000 * 60 * 60 * 24 * 7)
-    }
+      endsAt: new Date(Date.now() + 1000 * 60 * 60 * 24 * 7),
+    },
   });
 
   const sonyDeal = await prisma.deal.upsert({
@@ -138,7 +156,7 @@ async function main() {
       previousPrice: '399.00',
       status: DealStatus.ACTIVE,
       isHot: true,
-      score: 91
+      score: 91,
     },
     create: {
       slug: 'sony-xm5-sale',
@@ -152,8 +170,8 @@ async function main() {
       isHot: true,
       score: 91,
       startsAt: new Date(Date.now() - 1000 * 60 * 60 * 5),
-      endsAt: new Date(Date.now() + 1000 * 60 * 60 * 24 * 2)
-    }
+      endsAt: new Date(Date.now() + 1000 * 60 * 60 * 24 * 2),
+    },
   });
 
   await prisma.deal.upsert({
@@ -164,7 +182,7 @@ async function main() {
       previousPrice: '749.00',
       status: DealStatus.EXPIRED,
       isHidden: false,
-      score: 72
+      score: 72,
     },
     create: {
       slug: 'dyson-v15-last-week',
@@ -177,20 +195,20 @@ async function main() {
       status: DealStatus.EXPIRED,
       score: 72,
       startsAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 10),
-      endsAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 3)
-    }
+      endsAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 3),
+    },
   });
 
   await prisma.coupon.upsert({
     where: {
       merchantId_code: {
         merchantId: amazon.id,
-        code: 'SAVE20AUDIO'
-      }
+        code: 'SAVE20AUDIO',
+      },
     },
     update: {
       dealId: sonyDeal.id,
-      isActive: true
+      isActive: true,
     },
     create: {
       code: 'SAVE20AUDIO',
@@ -199,8 +217,8 @@ async function main() {
       merchantId: amazon.id,
       startsAt: new Date(Date.now() - 1000 * 60 * 60),
       expiresAt: new Date(Date.now() + 1000 * 60 * 60 * 24 * 10),
-      isActive: true
-    }
+      isActive: true,
+    },
   });
 
   const affiliateLink = await prisma.affiliateLink.upsert({
@@ -208,7 +226,7 @@ async function main() {
     update: {
       network: AffiliateNetwork.AMAZON,
       destinationUrl: 'https://www.amazon.com/dp/example',
-      trackingTemplate: 'https://www.amazon.com/dp/example?tag=dealos-20'
+      trackingTemplate: 'https://www.amazon.com/dp/example?tag=dealos-20',
     },
     create: {
       id: 'amazon-sonyxm5-link',
@@ -217,8 +235,8 @@ async function main() {
       network: AffiliateNetwork.AMAZON,
       destinationUrl: 'https://www.amazon.com/dp/example',
       trackingTemplate: 'https://www.amazon.com/dp/example?tag=dealos-20',
-      externalId: 'amz-001'
-    }
+      externalId: 'amz-001',
+    },
   });
 
   await prisma.priceHistory.createMany({
@@ -227,22 +245,22 @@ async function main() {
         productId: headphones.id,
         merchantId: amazon.id,
         price: '399.00',
-        recordedAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 28)
+        recordedAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 28),
       },
       {
         productId: headphones.id,
         merchantId: amazon.id,
         price: '329.00',
-        recordedAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 14)
+        recordedAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 14),
       },
       {
         productId: headphones.id,
         merchantId: amazon.id,
         price: '279.00',
-        recordedAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 2)
-      }
+        recordedAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 2),
+      },
     ],
-    skipDuplicates: true
+    skipDuplicates: true,
   });
 
   await prisma.review.create({
@@ -251,22 +269,22 @@ async function main() {
       userId: member.id,
       title: 'Great ANC performance',
       body: 'Battery life and sound profile are excellent.',
-      rating: 5
-    }
+      rating: 5,
+    },
   });
 
   await prisma.favorite.upsert({
     where: {
       userId_productId: {
         userId: member.id,
-        productId: headphones.id
-      }
+        productId: headphones.id,
+      },
     },
     update: {},
     create: {
       userId: member.id,
-      productId: headphones.id
-    }
+      productId: headphones.id,
+    },
   });
 
   await prisma.alert.upsert({
@@ -277,8 +295,8 @@ async function main() {
       userId: member.id,
       productId: headphones.id,
       type: AlertType.PRICE_DROP,
-      targetPrice: '249.00'
-    }
+      targetPrice: '249.00',
+    },
   });
 
   const session = await prisma.session.upsert({
@@ -289,8 +307,8 @@ async function main() {
       tokenHash: hashPassword('session-token-example'),
       ipAddress: '127.0.0.1',
       userAgent: 'seed-script',
-      expiresAt: new Date(Date.now() + 1000 * 60 * 60 * 24 * 7)
-    }
+      expiresAt: new Date(Date.now() + 1000 * 60 * 60 * 24 * 7),
+    },
   });
 
   const click = await prisma.click.create({
@@ -300,8 +318,8 @@ async function main() {
       sessionId: session.id,
       ipAddress: '127.0.0.1',
       userAgent: 'seed-script',
-      referrer: 'https://dealos.ai'
-    }
+      referrer: 'https://dealos.ai',
+    },
   });
 
   await prisma.commissionEvent.create({
@@ -310,8 +328,8 @@ async function main() {
       clickId: click.id,
       orderId: 'ORDER-1001',
       amount: '12.50',
-      status: CommissionStatus.PENDING
-    }
+      status: CommissionStatus.PENDING,
+    },
   });
 
   console.log(`Seeded users: ${adminUser.email}, ${member.email}`);

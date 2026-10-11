@@ -1,0 +1,19 @@
+name: DealOS final runtime evidence
+on:
+  push:
+    branches: [codex/dealos-production-audit]
+    paths: ['.github/workflows/dealos-final-runtime.yml','scripts/ops/final-runtime-evidence.mjs']
+permissions:
+  contents: read
+concurrency:
+  group: dealos-vps-operations
+  cancel-in-progress: false
+jobs:
+  evidence:
+    runs-on: [self-hosted, Linux, X64]
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - run: node scripts/ops/final-runtime-evidence.mjs

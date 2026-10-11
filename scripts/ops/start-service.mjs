@@ -1,0 +1,10 @@
+import { createRequire } from 'node:module';
+import { spawn } from 'node:child_process';
+import { productionEnv } from './production-env.mjs';
+const app = process.argv[2];
+if (!['api','web','admin'].includes(app)) throw new Error('Unknown DealOS service');
+const require = createRequire(`${process.cwd()}/package.json`);
+const args = app === 'api' ? ['dist/server.js'] : [require.resolve('next/dist/bin/next'), 'start', '-p', app === 'web' ? '3002' : '3003'];
+const child = spawn(process.execPath, args, { cwd: process.cwd(), env: productionEnv(app), stdio: 'inherit' });
+for (const signal of ['SIGTERM','SIGINT']) process.on(signal, () => child.kill(signal));
+child.on('exit', (code) => process.exit(code ?? 1));

@@ -24,8 +24,8 @@ export async function generateMetadata({ params }: MerchantPageProps): Promise<M
 
   return createPageMetadata({
     title: `${title} Deals & Coupons`,
-    description: `Browse verified ${title} deals, active promo codes, and pricing history.`,
-    path: `/merchants/${slug}`
+    description: `Browse recorded ${title} deals, active promo codes, and pricing history.`,
+    path: `/merchants/${slug}`,
   });
 }
 
@@ -50,21 +50,21 @@ export default async function MerchantPage({ params, searchParams }: MerchantPag
           '@type': 'Organization',
           name: data.merchant.name,
           url: data.merchant.websiteUrl,
-          sameAs: [absoluteUrl(`/merchants/${data.merchant.slug}`)]
+          sameAs: [absoluteUrl(`/merchants/${data.merchant.slug}`)],
         }}
       />
       <JsonLd
         data={breadcrumbsJsonLd([
           { name: 'Home', item: '/' },
           { name: 'Merchants', item: '/merchants' },
-          { name: data.merchant.name, item: `/merchants/${data.merchant.slug}` }
+          { name: data.merchant.name, item: `/merchants/${data.merchant.slug}` },
         ])}
       />
       <Breadcrumbs
         items={[
           { label: 'Home', href: '/' },
           { label: 'Merchants', href: '/merchants' },
-          { label: data.merchant.name }
+          { label: data.merchant.name },
         ]}
       />
 
@@ -106,15 +106,19 @@ export default async function MerchantPage({ params, searchParams }: MerchantPag
         <div className="flex items-start gap-2.5 rounded-2xl border border-border/60 bg-background/60 p-4 text-xs text-muted-foreground">
           <Info className="h-4 w-4 text-teal-600 dark:text-teal-400 shrink-0 mt-0.5" />
           <p className="leading-relaxed">
-            <strong className="text-foreground">Affiliate Disclosure:</strong> DealOS may earn qualifying commissions from purchases made via partner links to{' '}
-            <span className="font-semibold text-foreground">{data.merchant.name}</span>. All listed deals undergo autonomous price validation.
+            <strong className="text-foreground">Affiliate Disclosure:</strong> DealOS may earn
+            qualifying commissions from purchases made via partner links to{' '}
+            <span className="font-semibold text-foreground">{data.merchant.name}</span>. All listed
+            deals undergo autonomous price validation.
           </p>
         </div>
       </div>
 
       {/* Merchant Deals Grid */}
       <section className="space-y-6">
-        <h2 className="text-2xl font-bold tracking-tight text-foreground">Live {data.merchant.name} Deals</h2>
+        <h2 className="text-2xl font-bold tracking-tight text-foreground">
+          Live {data.merchant.name} Deals
+        </h2>
         {data.deals.items.length ? (
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {data.deals.items.map((deal) => (
@@ -122,7 +126,9 @@ export default async function MerchantPage({ params, searchParams }: MerchantPag
             ))}
           </div>
         ) : (
-          <p className="text-sm text-muted-foreground">No active deals right now for this merchant.</p>
+          <p className="text-sm text-muted-foreground">
+            No active deals right now for this merchant.
+          </p>
         )}
       </section>
 
@@ -135,14 +141,21 @@ export default async function MerchantPage({ params, searchParams }: MerchantPag
           </h2>
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             {data.coupons.map((coupon) => (
-              <div key={coupon.id} className="rounded-2xl border border-dashed border-amber-500/40 bg-card p-5 space-y-2 shadow-xs">
+              <div
+                key={coupon.id}
+                className="rounded-2xl border border-dashed border-amber-500/40 bg-card p-5 space-y-2 shadow-xs"
+              >
                 <div className="flex items-center justify-between">
-                  <span className="font-mono text-lg font-extrabold text-foreground select-all">{coupon.code}</span>
+                  <span className="font-mono text-lg font-extrabold text-foreground select-all">
+                    {coupon.code}
+                  </span>
                   <span className="rounded bg-amber-500/10 px-2 py-0.5 text-[10px] font-bold text-amber-700 dark:text-amber-300">
                     Promo Code
                   </span>
                 </div>
-                <MutedText className="text-xs">{coupon.description ?? 'Active promotion code'}</MutedText>
+                <MutedText className="text-xs">
+                  {coupon.description ?? 'Active promotion code'}
+                </MutedText>
               </div>
             ))}
           </div>
@@ -157,12 +170,16 @@ export default async function MerchantPage({ params, searchParams }: MerchantPag
         <div className="flex gap-2">
           {data.deals.page > 1 ? (
             <Link href={`/merchants/${slug}?page=${data.deals.page - 1}`}>
-              <Button variant="outline" size="sm" className="text-xs font-semibold">Previous</Button>
+              <Button variant="outline" size="sm" className="text-xs font-semibold">
+                Previous
+              </Button>
             </Link>
           ) : null}
           {data.deals.page < data.deals.totalPages ? (
             <Link href={`/merchants/${slug}?page=${data.deals.page + 1}`}>
-              <Button variant="brand" size="sm" className="text-xs font-semibold">Next</Button>
+              <Button variant="brand" size="sm" className="text-xs font-semibold">
+                Next
+              </Button>
             </Link>
           ) : null}
         </div>

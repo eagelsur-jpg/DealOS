@@ -1,0 +1,26 @@
+name: DealOS live browser acceptance
+on: workflow_dispatch
+permissions:
+  contents: read
+concurrency:
+  group: dealos-vps-operations
+  cancel-in-progress: false
+jobs:
+  browser:
+    runs-on: [self-hosted, Linux, X64]
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - name: Install isolated pinned browser tooling
+        run: |
+          export PATH="/root/.nvm/versions/node/v22.23.2/bin:$PATH"
+          mkdir -p /root/DealOS-browser-tools
+          npm install --prefix /root/DealOS-browser-tools --no-audit --no-fund playwright@1.56.1
+          /root/DealOS-browser-tools/node_modules/.bin/playwright install chromium
+      - name: Verify real pages across five viewport widths
+        run: node scripts/ops/browser-acceptance.mjs
+      - name: Confirm private VPS evidence location
+        if: always()
+        run: test -s browser-evidence-path && cat browser-evidence-path

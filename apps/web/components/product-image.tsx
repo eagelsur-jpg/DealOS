@@ -7,14 +7,18 @@ import { useState } from 'react';
 export const ProductImage = ({
   src,
   alt,
-  priority = false
+  priority = false,
 }: {
   src: string | null;
   alt: string;
   priority?: boolean;
 }) => {
   const [failed, setFailed] = useState(false);
-  const canRenderImage = src && !failed;
+  const canRenderImage =
+    src &&
+    (src.startsWith('https://') || (src.startsWith('/') && !src.startsWith('//'))) &&
+    !failed &&
+    !/^https?:\/\/(?:www\.)?example\.(com|org|net)(?:\/|$)/i.test(src);
 
   if (!canRenderImage) {
     return (
@@ -25,7 +29,7 @@ export const ProductImage = ({
         <span className="line-clamp-2 text-sm font-semibold text-foreground">{alt}</span>
         <span className="inline-flex items-center gap-1 rounded-full bg-background/80 px-2.5 py-1 text-xs text-muted-foreground">
           <Sparkles className="h-3 w-3" aria-hidden="true" />
-          Image coming soon
+          Image unavailable
         </span>
       </div>
     );
@@ -36,6 +40,7 @@ export const ProductImage = ({
       src={src}
       alt={alt}
       fill
+      unoptimized
       priority={priority}
       loading={priority ? 'eager' : 'lazy'}
       sizes="(min-width: 1280px) 25vw, (min-width: 768px) 50vw, 100vw"

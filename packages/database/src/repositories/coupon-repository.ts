@@ -1,12 +1,14 @@
+import { activeCouponWhere } from '../visibility.js';
 import type { PrismaClient } from '@prisma/client';
 
 export class CouponRepository {
   constructor(private readonly prisma: PrismaClient) {}
 
-  list() {
+  list(includeUnavailable = false) {
     return this.prisma.coupon.findMany({
+      where: includeUnavailable ? {} : activeCouponWhere(),
       include: { merchant: true, deal: true },
-      orderBy: { createdAt: 'desc' }
+      orderBy: { createdAt: 'desc' },
     });
   }
 
@@ -15,19 +17,19 @@ export class CouponRepository {
       where: {
         OR: [
           { code: { contains: query, mode: 'insensitive' } },
-          { description: { contains: query, mode: 'insensitive' } }
+          { description: { contains: query, mode: 'insensitive' } },
         ],
-        isHidden: false
+        ...activeCouponWhere(),
       },
       include: { merchant: true, deal: true },
-      orderBy: { createdAt: 'desc' }
+      orderBy: { createdAt: 'desc' },
     });
   }
 
   getById(id: string) {
     return this.prisma.coupon.findUnique({
       where: { id },
-      include: { merchant: true, deal: true }
+      include: { merchant: true, deal: true },
     });
   }
 
@@ -45,8 +47,8 @@ export class CouponRepository {
       data: {
         ...data,
         description: data.description ?? null,
-        dealId: data.dealId ?? null
-      }
+        dealId: data.dealId ?? null,
+      },
     });
   }
 
@@ -65,7 +67,7 @@ export class CouponRepository {
   ) {
     return this.prisma.coupon.update({
       where: { id },
-      data
+      data,
     });
   }
 

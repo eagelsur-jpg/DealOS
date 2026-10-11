@@ -23,6 +23,7 @@
     "test": "vitest run --passWithNoTests",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "dev": "next dev -p 3003",
-    "clean": "rm -rf .next"
+    "clean": "rm -rf .next",
+    "start": "next start -p 3003"
   }
 }

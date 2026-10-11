@@ -7,7 +7,7 @@ import { siteConfig } from '@/lib/site';
 const newsletterSchema = z.object({
   RESEND_API_KEY: z.string().min(1),
   RESEND_FROM_EMAIL: z.string().email(),
-  NEXT_PUBLIC_SITE_URL: z.string().url().optional()
+  NEXT_PUBLIC_SITE_URL: z.string().url().optional(),
 });
 
 const repository = new NewsletterRepository(prisma);
@@ -25,14 +25,14 @@ export const createNewsletterSubscription = async (email: string, source?: strin
     email,
     verificationHash,
     verificationExpiresAt,
-    source
+    source,
   });
 
   const baseUrl = env.NEXT_PUBLIC_SITE_URL ?? siteConfig.url;
   const verificationUrl = `${baseUrl}/newsletter/verify?token=${token}`;
   const resend = new Resend(env.RESEND_API_KEY);
 
-  await resend.emails.send({
+  const sent = await resend.emails.send({
     from: env.RESEND_FROM_EMAIL,
     to: [subscription.email],
     subject: 'Confirm your DealOS newsletter subscription',
@@ -41,12 +41,14 @@ export const createNewsletterSubscription = async (email: string, source?: strin
       <p>Please confirm your email to activate deal alerts and weekly shopping intelligence updates.</p>
       <p><a href="${verificationUrl}">Confirm subscription</a></p>
       <p>This link expires in 24 hours.</p>
-    `
+    `,
   });
+
+  if (sent.error) throw new Error('Newsletter delivery unavailable');
 
   return {
     email: subscription.email,
-    verificationSentAt: subscription.verificationSentAt
+    verificationSentAt: subscription.verificationSentAt,
   };
 };
 

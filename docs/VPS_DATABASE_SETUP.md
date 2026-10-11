@@ -1,3 +1,5 @@
+> Existing LIVE VPS: do not run database bootstrap, seed, schema reset, db push, or migration commands from this historical setup guide. Use DEALOS-FINAL-AUDIT.md and inspect migration status without applying changes.
+
 # VPS PostgreSQL Setup for DealOS (Production-Safe, Idempotent)
 
 This runbook provisions a dedicated DealOS database and user on your **existing VPS PostgreSQL** instance (single source of truth), with secure remote access controls.

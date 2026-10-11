@@ -323,6 +323,16 @@ model CommissionEvent {
   @@index([affiliateLinkId, status, recordedAt])
 }
 
+// Immutable evidence for narrowly identified seed duplicate reconciliation.
+// No cascade relation: original snapshots must survive catalog lifecycle changes.
+model CommissionReconciliation {
+  id                String   @id
+  commissionEventId String   @unique
+  originalRecord    Json
+  reason            String
+  reconciledAt      DateTime @default(now())
+}
+
 model NewsletterSubscription {
   id               String           @id @default(cuid())
   email            String           @unique

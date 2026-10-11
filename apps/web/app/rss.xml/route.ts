@@ -4,11 +4,17 @@ import { absoluteUrl } from '@/lib/seo';
 export const revalidate = 900;
 export const dynamic = 'force-dynamic';
 
+const xmlText = (value: string) =>
+  value.replace(
+    /[<>&"']/g,
+    (c) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;', "'": '&apos;' })[c]!,
+  );
+
 export async function GET() {
   const deals = await getDealsListing({
     mode: 'newest',
     page: 1,
-    pageSize: 30
+    pageSize: 30,
   });
 
   const xml = `<?xml version="1.0" encoding="UTF-8" ?>
@@ -21,10 +27,10 @@ export async function GET() {
       .map(
         (deal) => `
     <item>
-      <title><![CDATA[${deal.title}]]></title>
-      <link>${absoluteUrl(`/deals/${deal.slug}`)}</link>
-      <guid>${absoluteUrl(`/deals/${deal.slug}`)}</guid>
-      <description><![CDATA[${deal.merchantName} · ${deal.currentPrice}]]></description>
+      <title><![CDATA[${xmlText(deal.title)}]]></title>
+      <link>${xmlText(absoluteUrl(`/deals/${deal.slug}`))}</link>
+      <guid>${xmlText(absoluteUrl(`/deals/${deal.slug}`))}</guid>
+      <description><![CDATA[${xmlText(deal.merchantName)} · ${deal.currentPrice}]]></description>
     </item>`,
       )
       .join('')}
@@ -34,7 +40,7 @@ export async function GET() {
   return new Response(xml, {
     headers: {
       'Content-Type': 'application/rss+xml; charset=utf-8',
-      'Cache-Control': 's-maxage=900, stale-while-revalidate=1800'
-    }
+      'Cache-Control': 's-maxage=900, stale-while-revalidate=1800',
+    },
   });
 }

@@ -11,10 +11,20 @@ import {
   Store,
   Tag,
   Ticket,
-  TrendingDown
+  TrendingDown,
 } from 'lucide-react';
 import { calculateSavingsPercent, formatCurrency } from '@dealos/utils';
-import { Button, Card, CardContent, CardHeader, CardTitle, Container, H1, MutedText } from '@dealos/ui';
+import {
+  Button,
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  Container,
+  H1,
+  MutedText,
+} from '@dealos/ui';
+import { isOfferAvailable } from '@/lib/offer-availability';
 import { AffiliateButton } from '@/components/affiliate-button';
 import { Breadcrumbs } from '@/components/breadcrumbs';
 import { DealCard } from '@/components/deal-card';
@@ -36,14 +46,16 @@ export async function generateMetadata({ params }: DealDetailsPageProps): Promis
     return createPageMetadata({
       title: 'Deal Not Found',
       description: 'Deal no longer available.',
-      path: `/deals/${slug}`
+      path: `/deals/${slug}`,
     });
   }
 
   return createPageMetadata({
     title: `${details.deal.title} — DealOS Intelligence`,
-    description: details.deal.description ?? `Track ${details.deal.title} with price history and verified merchant data.`,
-    path: `/deals/${slug}`
+    description:
+      details.deal.description ??
+      `Track ${details.deal.title} with price history and verified merchant data.`,
+    path: `/deals/${slug}`,
   });
 }
 
@@ -59,26 +71,29 @@ export default async function DealDetailsPage({ params }: DealDetailsPageProps) 
   }
 
   const { deal, priceHistory, relatedDeals } = details;
+  const offerAvailable = isOfferAvailable(deal);
   const discountPercent = calculateSavingsPercent(deal.previousPrice, deal.currentPrice);
-  const savingsAmount = deal.previousPrice ? Number(deal.previousPrice) - Number(deal.currentPrice) : 0;
+  const savingsAmount = deal.previousPrice
+    ? Number(deal.previousPrice) - Number(deal.currentPrice)
+    : 0;
 
   const faqItems = [
     {
       question: `How long is ${deal.title} expected to stay active?`,
       answer: deal.endsAt
-        ? `Based on merchant feed telemetry, this offer is scheduled to expire on ${new Date(deal.endsAt).toLocaleDateString()}.`
-        : 'No explicit expiration date was specified by the merchant feed. DealOS continually verifies availability.'
+        ? `According to the saved listing, this offer ends on ${new Date(deal.endsAt).toLocaleDateString()}.`
+        : 'No explicit expiration date is saved for this listing. Check current availability with the merchant.',
     },
     {
       question: 'Is this an authenticated merchant deal?',
       answer:
-        'Yes. DealOS lists merchant-verified offers and includes full affiliate disclosure, price history logs, and click transparency.'
+        'This listing is stored in the DealOS catalog. Confirm price and availability on the merchant website.',
     },
     {
       question: 'How often is price history updated?',
       answer:
-        'Price monitoring algorithms scan feeds multiple times daily to log accurate historical pricing and trigger deal alerts.'
-    }
+        'Price history displays recorded entries only. Automatic feed synchronization is not configured.',
+    },
   ];
 
   return (
@@ -87,7 +102,7 @@ export default async function DealDetailsPage({ params }: DealDetailsPageProps) 
         data={breadcrumbsJsonLd([
           { name: 'Home', item: '/' },
           { name: 'Deals', item: '/deals' },
-          { name: deal.title, item: `/deals/${deal.slug}` }
+          { name: deal.title, item: `/deals/${deal.slug}` },
         ])}
       />
       <JsonLd
@@ -96,38 +111,18 @@ export default async function DealDetailsPage({ params }: DealDetailsPageProps) 
           '@type': 'Product',
           name: deal.product.name,
           description: deal.description ?? deal.title,
-          brand: deal.merchant.name,
           category: deal.product.category?.name,
-          offers: {
+          offers: offerAvailable ? {
             '@type': 'Offer',
             price: deal.currentPrice,
             priceCurrency: deal.currency,
-            availability: 'https://schema.org/InStock',
+            priceValidUntil: deal.endsAt?.toISOString().slice(0, 10),
             seller: {
               '@type': 'Organization',
-              name: deal.merchant.name
+              name: deal.merchant.name,
             },
-            url: absoluteUrl(`/deals/${deal.slug}`)
-          }
-        }}
-      />
-      <JsonLd
-        data={{
-          '@context': 'https://schema.org',
-          '@type': 'Offer',
-          name: deal.title,
-          price: deal.currentPrice,
-          priceCurrency: deal.currency,
-          availability: 'https://schema.org/InStock',
-          itemOffered: {
-            '@type': 'Product',
-            name: deal.product.name
-          },
-          seller: {
-            '@type': 'Organization',
-            name: deal.merchant.name
-          },
-          url: absoluteUrl(`/deals/${deal.slug}`)
+            url: absoluteUrl(`/deals/${deal.slug}`),
+          } : undefined,
         }}
       />
       <JsonLd
@@ -139,9 +134,9 @@ export default async function DealDetailsPage({ params }: DealDetailsPageProps) 
             name: item.question,
             acceptedAnswer: {
               '@type': 'Answer',
-              text: item.answer
-            }
-          }))
+              text: item.answer,
+            },
+          })),
         }}
       />
 
@@ -149,10 +144,19 @@ export default async function DealDetailsPage({ params }: DealDetailsPageProps) 
         items={[
           { label: 'Home', href: '/' },
           { label: 'Deals', href: '/deals' },
-          { label: deal.title }
+          { label: deal.title },
         ]}
       />
 
+      {['macbook-pro-14-discount', 'sony-xm5-sale', 'dyson-v15-last-week'].includes(deal.slug) && (
+        <p className="rounded border p-4 text-sm">
+          This identifier matches a sample catalog listing. Prices and availability require merchant
+          verification.
+        </p>
+      )}
+      {!offerAvailable && (
+        <p className="rounded border p-4">This offer has expired or is unavailable.</p>
+      )}
       {/* Main Deal Hero Workspace */}
       <div className="grid gap-8 lg:grid-cols-[1.1fr_0.9fr] lg:items-start">
         {/* Left Aspect: Product Media Preview */}
@@ -191,7 +195,10 @@ export default async function DealDetailsPage({ params }: DealDetailsPageProps) 
           {/* Quick Specifications Pill Bar */}
           <div className="flex flex-wrap gap-2 rounded-2xl border border-border/60 bg-card/60 p-3 text-xs backdrop-blur-xs">
             {deal.product.category ? (
-              <Link href={`/categories/${deal.product.category.slug}`} className="inline-flex items-center gap-1 text-muted-foreground hover:text-teal-600 dark:hover:text-teal-400">
+              <Link
+                href={`/categories/${deal.product.category.slug}`}
+                className="inline-flex items-center gap-1 text-muted-foreground hover:text-teal-600 dark:hover:text-teal-400"
+              >
                 <Tag className="h-3.5 w-3.5" />
                 {deal.product.category.name}
               </Link>
@@ -217,9 +224,12 @@ export default async function DealDetailsPage({ params }: DealDetailsPageProps) 
               DealOS Intelligence Verified
             </div>
 
-            <H1 className="text-2xl sm:text-3xl lg:text-4xl leading-tight font-extrabold">{deal.title}</H1>
+            <H1 className="text-2xl sm:text-3xl lg:text-4xl leading-tight font-extrabold">
+              {deal.title}
+            </H1>
             <MutedText className="text-sm sm:text-base leading-relaxed">
-              {deal.description ?? 'Verified merchant offer with real-time price monitoring and coupon code verification.'}
+              {deal.description ??
+                'Verified merchant offer with real-time price monitoring and coupon code verification.'}
             </MutedText>
           </div>
 
@@ -227,18 +237,26 @@ export default async function DealDetailsPage({ params }: DealDetailsPageProps) 
           <div className="rounded-2xl border border-border/80 bg-card p-6 shadow-sm space-y-4">
             <div className="flex items-baseline justify-between gap-4">
               <div>
-                <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Current Price</p>
-                <p className="text-4xl font-extrabold tracking-tight text-foreground">{formatCurrency(deal.currentPrice)}</p>
+                <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                  Current Price
+                </p>
+                <p className="text-4xl font-extrabold tracking-tight text-foreground">
+                  {formatCurrency(deal.currentPrice, deal.currency)}
+                </p>
               </div>
 
               {deal.previousPrice && savingsAmount > 0 ? (
                 <div className="text-right">
                   <span className="inline-flex items-center gap-1 rounded-lg bg-teal-500/15 px-3 py-1 text-xs font-extrabold text-teal-600 dark:text-teal-400">
                     <TrendingDown className="h-3.5 w-3.5" />
-                    Save {formatCurrency(savingsAmount)} ({Math.round(discountPercent)}%)
+                    Save {formatCurrency(savingsAmount, deal.currency)} (
+                    {Math.round(discountPercent)}%)
                   </span>
                   <p className="mt-1 text-xs text-muted-foreground">
-                    Was <span className="line-through">{formatCurrency(deal.previousPrice)}</span>
+                    Was{' '}
+                    <span className="line-through">
+                      {formatCurrency(deal.previousPrice, deal.currency)}
+                    </span>
                   </p>
                 </div>
               ) : null}
@@ -252,10 +270,17 @@ export default async function DealDetailsPage({ params }: DealDetailsPageProps) 
                   Promo Coupon Code
                 </p>
                 {deal.coupons.map((coupon) => (
-                  <div key={coupon.id} className="flex items-center justify-between gap-2 rounded-lg bg-background p-2.5 shadow-2xs border border-amber-500/20">
+                  <div
+                    key={coupon.id}
+                    className="flex items-center justify-between gap-2 rounded-lg bg-background p-2.5 shadow-2xs border border-amber-500/20"
+                  >
                     <div>
-                      <span className="font-mono text-sm font-extrabold text-foreground select-all">{coupon.code}</span>
-                      {coupon.description ? <p className="text-xs text-muted-foreground">{coupon.description}</p> : null}
+                      <span className="font-mono text-sm font-extrabold text-foreground select-all">
+                        {coupon.code}
+                      </span>
+                      {coupon.description ? (
+                        <p className="text-xs text-muted-foreground">{coupon.description}</p>
+                      ) : null}
                     </div>
                     <span className="text-[10px] font-bold uppercase tracking-wider text-teal-600 dark:text-teal-400 bg-teal-500/10 px-2 py-1 rounded-md">
                       Active
@@ -268,14 +293,15 @@ export default async function DealDetailsPage({ params }: DealDetailsPageProps) 
             {/* CTA Buttons */}
             <div className="pt-2">
               <AffiliateButton
-                affiliateLinkId={deal.affiliateLinks[0]?.id ?? null}
+                affiliateLinkId={offerAvailable ? (deal.affiliateLinks[0]?.id ?? null) : null}
                 dealSlug={deal.slug}
                 merchantSlug={deal.merchant.slug}
               />
             </div>
 
             <p className="text-[11px] leading-relaxed text-muted-foreground text-center">
-              Affiliate link redirect includes click verification. DealOS earns qualifying merchant commissions.
+              Affiliate link redirect includes click verification. DealOS earns qualifying merchant
+              commissions.
             </p>
           </div>
 
@@ -310,7 +336,11 @@ export default async function DealDetailsPage({ params }: DealDetailsPageProps) 
 
       {/* Visual Price History Section */}
       <section>
-        <PriceHistoryChart priceHistory={priceHistory} currentPrice={deal.currentPrice} />
+        <PriceHistoryChart
+          priceHistory={priceHistory}
+          currentPrice={deal.currentPrice}
+          currency={deal.currency}
+        />
       </section>
 
       {/* Frequently Asked Questions */}
@@ -320,11 +350,14 @@ export default async function DealDetailsPage({ params }: DealDetailsPageProps) 
             <HelpCircle className="h-5 w-5 text-teal-600 dark:text-teal-400" />
             Frequently Asked Questions
           </h2>
-          <MutedText className="text-sm">Verified insights about this merchant offer</MutedText>
+          <MutedText className="text-sm">Information about this catalog offer</MutedText>
         </div>
         <div className="grid gap-4 md:grid-cols-3">
           {faqItems.map((item) => (
-            <div key={item.question} className="rounded-2xl border border-border/80 bg-card p-5 shadow-xs space-y-2">
+            <div
+              key={item.question}
+              className="rounded-2xl border border-border/80 bg-card p-5 shadow-xs space-y-2"
+            >
               <p className="font-semibold text-sm text-foreground">{item.question}</p>
               <MutedText className="text-xs leading-relaxed">{item.answer}</MutedText>
             </div>
@@ -338,7 +371,9 @@ export default async function DealDetailsPage({ params }: DealDetailsPageProps) 
           <div className="flex items-center justify-between">
             <div>
               <h2 className="text-2xl font-bold tracking-tight text-foreground">Related Deals</h2>
-              <MutedText className="text-sm">More offers in {deal.product.category?.name ?? 'similar categories'}</MutedText>
+              <MutedText className="text-sm">
+                More offers in {deal.product.category?.name ?? 'similar categories'}
+              </MutedText>
             </div>
             <Link href="/deals">
               <Button variant="outline" size="sm" className="gap-1 text-xs">

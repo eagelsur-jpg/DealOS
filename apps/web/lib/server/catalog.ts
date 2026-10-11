@@ -1,5 +1,11 @@
 import { unstable_cache } from 'next/cache';
-import { DealRepository, DealService, prisma } from '@dealos/database';
+import {
+  DealRepository,
+  DealService,
+  prisma,
+  activeCouponWhere,
+  activeDealWhere,
+} from '@dealos/database';
 import type { DealSort } from '@dealos/types';
 
 type DealListMode = 'featured' | 'trending' | 'newest' | 'hot' | 'expired' | 'hidden';
@@ -16,6 +22,8 @@ export interface DealCardData {
   merchantSlug: string;
   productName: string;
   productImageUrl: string | null;
+  currency: string;
+  isDemo: boolean;
   currentPrice: number;
   previousPrice: number | null;
   score: number;
@@ -32,6 +40,7 @@ const mapDealCard = (deal: {
   title: string;
   merchant: { name: string; slug: string };
   product: { name: string; imageUrl: string | null };
+  currency: string;
   currentPrice: unknown;
   previousPrice: unknown;
   score: number;
@@ -48,6 +57,8 @@ const mapDealCard = (deal: {
   merchantSlug: deal.merchant.slug,
   productName: deal.product.name,
   productImageUrl: deal.product.imageUrl,
+  isDemo: ['macbook-pro-14-discount', 'sony-xm5-sale', 'dyson-v15-last-week'].includes(deal.slug),
+  currency: deal.currency,
   currentPrice: toNumber(deal.currentPrice),
   previousPrice: deal.previousPrice ? toNumber(deal.previousPrice) : null,
   score: deal.score,
@@ -55,22 +66,17 @@ const mapDealCard = (deal: {
   isFeatured: deal.isFeatured,
   endsAt: deal.endsAt,
   couponCode: deal.coupons[0]?.code ?? null,
-  affiliateLinkId: deal.affiliateLinks?.[0]?.id ?? null
+  affiliateLinkId: deal.affiliateLinks?.[0]?.id ?? null,
 });
 
-const getDealsByModeCached = (mode: DealListMode, count = 8) =>
-  unstable_cache(
-    async () => {
-      const result = await deals.listDeals({ mode, page: 1, pageSize: count });
-      return result.items.map(mapDealCard);
-    },
-    [`home-${mode}-${count}`],
-    { revalidate: 300 },
-  )();
+const getDealsByModeCached = async (mode: DealListMode, count = 8) => {
+  const result = await deals.listDeals({ mode, page: 1, pageSize: count });
+  return result.items.map(mapDealCard);
+};
 
-export const getHomePageData = unstable_cache(
-  async () => {
-    const [trendingDeals, featuredDeals, newestDeals, categories, merchants, latestCoupons] = await Promise.all([
+export const getHomePageData = async () => {
+  const [trendingDeals, featuredDeals, newestDeals, categories, merchants, latestCoupons] =
+    await Promise.all([
       getDealsByModeCached('trending', 8),
       getDealsByModeCached('featured', 8),
       getDealsByModeCached('newest', 8),
@@ -78,60 +84,56 @@ export const getHomePageData = unstable_cache(
         take: 10,
         orderBy: {
           products: {
-            _count: 'desc'
-          }
+            _count: 'desc',
+          },
         },
         include: {
           _count: {
             select: {
-              products: true
-            }
-          }
-        }
+              products: { where: { isActive: true } },
+            },
+          },
+        },
       }),
       prisma.merchant.findMany({
         where: { isActive: true },
         take: 10,
         orderBy: {
           deals: {
-            _count: 'desc'
-          }
+            _count: 'desc',
+          },
         },
         include: {
           _count: {
             select: {
-              deals: true
-            }
-          }
-        }
+              deals: { where: activeDealWhere() },
+            },
+          },
+        },
       }),
       prisma.coupon.findMany({
         where: {
-          isActive: true,
-          isHidden: false
+          ...activeCouponWhere(),
         },
         take: 8,
         orderBy: {
-          createdAt: 'desc'
+          createdAt: 'desc',
         },
         include: {
-          merchant: true
-        }
-      })
+          merchant: true,
+        },
+      }),
     ]);
 
-    return {
-      trendingDeals,
-      featuredDeals,
-      newestDeals,
-      categories,
-      merchants,
-      latestCoupons
-    };
-  },
-  ['homepage-data'],
-  { revalidate: 300 },
-);
+  return {
+    trendingDeals,
+    featuredDeals,
+    newestDeals,
+    categories,
+    merchants,
+    latestCoupons,
+  };
+};
 
 export const getDealsListing = async (input: {
   mode?: DealListMode;
@@ -144,6 +146,7 @@ export const getDealsListing = async (input: {
   page: number;
   pageSize: number;
   sort?: DealSort;
+  minSavingsPercent?: number;
 }) => {
   const result = await deals.listDeals({
     mode: input.mode,
@@ -155,14 +158,15 @@ export const getDealsListing = async (input: {
       merchantSlug: input.merchant,
       hasCoupon: input.hasCoupon,
       minPrice: input.minPrice,
-      maxPrice: input.maxPrice
+      maxPrice: input.maxPrice,
     },
-    sort: input.sort
+    sort: input.sort,
+    minSavingsPercent: input.minSavingsPercent,
   });
 
   return {
     ...result,
-    items: result.items.map(mapDealCard)
+    items: result.items.map(mapDealCard),
   };
 };
 
@@ -176,42 +180,47 @@ export const getDealBySlug = async (slug: string) => {
           category: true,
           reviews: {
             orderBy: { createdAt: 'desc' },
-            take: 5
+            take: 5,
           },
           priceHistory: {
             orderBy: { recordedAt: 'desc' },
-            take: 30
-          }
-        }
+            take: 30,
+          },
+        },
       },
       coupons: {
-        where: { isActive: true, isHidden: false },
-        take: 5
+        where: { ...activeCouponWhere() },
+        take: 5,
       },
       affiliateLinks: {
         where: { isActive: true },
-        take: 1
+        take: 1,
       },
       _count: {
         select: {
-          clicks: true
-        }
-      }
-    }
+          clicks: true,
+        },
+      },
+    },
   });
 
-  if (!deal) {
+  if (
+    !deal ||
+    deal.isHidden ||
+    ['DRAFT', 'HIDDEN'].includes(deal.status) ||
+    !deal.product.isActive ||
+    !deal.merchant.isActive
+  ) {
     return null;
   }
 
   const related = await prisma.deal.findMany({
     where: {
-      status: 'ACTIVE',
-      isHidden: false,
+      ...activeDealWhere(),
       id: {
-        not: deal.id
+        not: deal.id,
       },
-      OR: [{ productId: deal.productId }, { product: { categoryId: deal.product.categoryId } }]
+      OR: [{ productId: deal.productId }, { product: { categoryId: deal.product.categoryId } }],
     },
     take: 4,
     orderBy: [{ score: 'desc' }, { createdAt: 'desc' }],
@@ -219,27 +228,30 @@ export const getDealBySlug = async (slug: string) => {
       product: true,
       merchant: true,
       coupons: {
-        where: { isActive: true, isHidden: false },
-        take: 1
+        where: { ...activeCouponWhere() },
+        take: 1,
       },
       affiliateLinks: {
         where: { isActive: true },
-        take: 1
-      }
-    }
+        take: 1,
+      },
+    },
   });
 
   return {
     deal: {
       ...deal,
+      currency: deal.currency,
       currentPrice: toNumber(deal.currentPrice),
-      previousPrice: deal.previousPrice ? toNumber(deal.previousPrice) : null
+      previousPrice: deal.previousPrice ? toNumber(deal.previousPrice) : null,
     },
-    priceHistory: deal.product.priceHistory.map((entry) => ({
-      ...entry,
-      price: toNumber(entry.price)
-    })),
-    relatedDeals: related.map(mapDealCard)
+    priceHistory: deal.product.priceHistory
+      .filter((entry) => entry.currency === deal.currency && entry.merchantId === deal.merchantId)
+      .map((entry) => ({
+        ...entry,
+        price: toNumber(entry.price),
+      })),
+    relatedDeals: related.map(mapDealCard),
   };
 };
 
@@ -250,10 +262,10 @@ export const getCategoriesPageData = unstable_cache(
       include: {
         _count: {
           select: {
-            products: true
-          }
-        }
-      }
+            products: { where: { isActive: true } },
+          },
+        },
+      },
     }),
   ['categories-page'],
   { revalidate: 900 },
@@ -273,10 +285,10 @@ export const getCategoryBySlug = async (
     include: {
       _count: {
         select: {
-          products: true
-        }
-      }
-    }
+          products: { where: { isActive: true } },
+        },
+      },
+    },
   });
 
   if (!category) {
@@ -290,12 +302,12 @@ export const getCategoryBySlug = async (
     sort,
     minPrice,
     maxPrice,
-    hasCoupon
+    hasCoupon,
   });
 
   return {
     category,
-    deals: dealsResult
+    deals: dealsResult,
   };
 };
 
@@ -307,30 +319,35 @@ export const getMerchantsPageData = unstable_cache(
       include: {
         _count: {
           select: {
-            deals: true,
-            coupons: true
-          }
-        }
-      }
+            deals: { where: activeDealWhere() },
+            coupons: { where: activeCouponWhere() },
+          },
+        },
+      },
     }),
   ['merchants-page'],
   { revalidate: 900 },
 );
 
-export const getMerchantBySlug = async (slug: string, page: number, pageSize: number, sort?: DealSort) => {
+export const getMerchantBySlug = async (
+  slug: string,
+  page: number,
+  pageSize: number,
+  sort?: DealSort,
+) => {
   const merchant = await prisma.merchant.findUnique({
     where: { slug },
     include: {
       _count: {
         select: {
-          deals: true,
-          coupons: true
-        }
-      }
-    }
+          deals: { where: activeDealWhere() },
+          coupons: { where: activeCouponWhere() },
+        },
+      },
+    },
   });
 
-  if (!merchant) {
+  if (!merchant || !merchant.isActive) {
     return null;
   }
 
@@ -339,20 +356,19 @@ export const getMerchantBySlug = async (slug: string, page: number, pageSize: nu
     prisma.coupon.findMany({
       where: {
         merchantId: merchant.id,
-        isActive: true,
-        isHidden: false
+        ...activeCouponWhere(),
       },
       orderBy: {
-        createdAt: 'desc'
+        createdAt: 'desc',
       },
-      take: 20
-    })
+      take: 20,
+    }),
   ]);
 
   return {
     merchant,
     deals: dealsResult,
-    coupons
+    coupons,
   };
 };
 
@@ -361,25 +377,23 @@ export const getCouponsListing = async (page: number, pageSize: number) => {
   const [items, totalItems] = await Promise.all([
     prisma.coupon.findMany({
       where: {
-        isActive: true,
-        isHidden: false
+        ...activeCouponWhere(),
       },
       include: {
         merchant: true,
-        deal: true
+        deal: true,
       },
       orderBy: {
-        createdAt: 'desc'
+        createdAt: 'desc',
       },
       skip,
-      take: pageSize
+      take: pageSize,
     }),
     prisma.coupon.count({
       where: {
-        isActive: true,
-        isHidden: false
-      }
-    })
+        ...activeCouponWhere(),
+      },
+    }),
   ]);
 
   return {
@@ -387,32 +401,17 @@ export const getCouponsListing = async (page: number, pageSize: number) => {
     page,
     pageSize,
     totalItems,
-    totalPages: Math.max(1, Math.ceil(totalItems / pageSize))
+    totalPages: Math.max(1, Math.ceil(totalItems / pageSize)),
   };
 };
 
-export const getClearanceListing = async (page: number, pageSize: number) => {
-  const base = await getDealsListing({
+export const getClearanceListing = (page: number, pageSize: number) =>
+  getDealsListing({
     page,
     pageSize,
-    sort: {
-      field: 'savings',
-      direction: 'desc'
-    }
+    minSavingsPercent: 25,
+    sort: { field: 'savings', direction: 'desc' },
   });
-
-  return {
-    ...base,
-    items: base.items.filter((deal) => {
-      if (!deal.previousPrice || deal.previousPrice <= 0) {
-        return false;
-      }
-
-      const discountPercent = ((deal.previousPrice - deal.currentPrice) / deal.previousPrice) * 100;
-      return discountPercent >= 25;
-    })
-  };
-};
 
 export const getAutocomplete = (query: string, limit = 8) => deals.autocomplete(query, limit);
 
@@ -421,6 +420,7 @@ export const getSearchDeals = async (input: {
   page: number;
   pageSize: number;
   sort?: DealSort;
+  minSavingsPercent?: number;
   category?: string;
   merchant?: string;
 }) =>
@@ -430,5 +430,5 @@ export const getSearchDeals = async (input: {
     pageSize: input.pageSize,
     sort: input.sort,
     category: input.category,
-    merchant: input.merchant
+    merchant: input.merchant,
   });

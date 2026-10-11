@@ -1,3 +1,5 @@
+> Existing LIVE VPS: do not run database bootstrap, seed, schema reset, db push, or migration commands from this historical setup guide. Use DEALOS-FINAL-AUDIT.md and inspect migration status without applying changes.
+
 # Local Setup (from zero)
 
 This project requires **PostgreSQL** before starting the web app because the homepage reads live data from Prisma on first request.

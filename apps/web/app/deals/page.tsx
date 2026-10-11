@@ -12,7 +12,7 @@ import { absoluteUrl } from '@/lib/seo';
 export const metadata: Metadata = createPageMetadata({
   title: 'Deals',
   description: 'Browse active deals with filtering, sorting, and transparent pricing data.',
-  path: '/deals'
+  path: '/deals',
 });
 
 export const revalidate = 180;
@@ -28,7 +28,7 @@ const parseSort = (sortField?: string, sortDirection?: string) => {
   if (!['asc', 'desc'].includes(sortDirection)) return undefined;
   return {
     field: sortField as 'createdAt' | 'price' | 'savings' | 'score',
-    direction: sortDirection as 'asc' | 'desc'
+    direction: sortDirection as 'asc' | 'desc',
   };
 };
 
@@ -48,7 +48,11 @@ export default async function DealsPage({ searchParams }: DealsPageProps) {
 
   const results = await getDealsListing({
     mode:
-      mode === 'featured' || mode === 'trending' || mode === 'newest' || mode === 'hot' || mode === 'expired'
+      mode === 'featured' ||
+      mode === 'trending' ||
+      mode === 'newest' ||
+      mode === 'hot' ||
+      mode === 'expired'
         ? mode
         : undefined,
     query,
@@ -59,14 +63,14 @@ export default async function DealsPage({ searchParams }: DealsPageProps) {
     maxPrice: Number.isFinite(maxPrice) ? maxPrice : undefined,
     page,
     pageSize,
-    sort: parseSort(sortField, sortDirection)
+    sort: parseSort(sortField, sortDirection),
   });
 
   const filterModes = [
     { label: 'All Deals', value: undefined },
     { label: 'Trending 🔥', value: 'trending' },
     { label: 'Featured ⭐', value: 'featured' },
-    { label: 'Newest ⚡', value: 'newest' }
+    { label: 'Newest ⚡', value: 'newest' },
   ];
 
   return (
@@ -80,13 +84,13 @@ export default async function DealsPage({ searchParams }: DealsPageProps) {
             position: index + 1,
             name: deal.title,
             price: deal.currentPrice,
-            priceCurrency: 'USD',
+            priceCurrency: deal.currency,
             seller: {
               '@type': 'Organization',
-              name: deal.merchantName
+              name: deal.merchantName,
             },
-            url: absoluteUrl(`/deals/${deal.slug}`)
-          }))
+            url: absoluteUrl(`/deals/${deal.slug}`),
+          })),
         }}
       />
 
@@ -97,7 +101,8 @@ export default async function DealsPage({ searchParams }: DealsPageProps) {
         <div className="space-y-2">
           <H1>Explore Live Deals</H1>
           <MutedText className="text-base max-w-2xl">
-            Verified active deals with transparent discount math, price drop tracking, and merchant attribution.
+            Verified active deals with transparent discount math, price drop tracking, and merchant
+            attribution.
           </MutedText>
         </div>
 

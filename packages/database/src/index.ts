@@ -11,3 +11,4 @@ export { NewsletterRepository } from './repositories/newsletter-repository.js';
 export { ProductRepository } from './repositories/product-repository.js';
 export { UserRepository } from './repositories/user-repository.js';
 export { SessionRepository } from './repositories/session-repository.js';
+export { activeCouponWhere, activeDealWhere } from './visibility.js';

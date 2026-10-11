@@ -3,10 +3,11 @@ import type { PrismaClient } from '@prisma/client';
 export class ProductRepository {
   constructor(private readonly prisma: PrismaClient) {}
 
-  list() {
+  list(includeInactive = false) {
     return this.prisma.product.findMany({
+      where: includeInactive ? {} : { isActive: true },
       include: { category: true },
-      orderBy: { createdAt: 'desc' }
+      orderBy: { createdAt: 'desc' },
     });
   }
 
@@ -15,19 +16,19 @@ export class ProductRepository {
       where: {
         OR: [
           { name: { contains: query, mode: 'insensitive' } },
-          { description: { contains: query, mode: 'insensitive' } }
+          { description: { contains: query, mode: 'insensitive' } },
         ],
-        isActive: true
+        isActive: true,
       },
       include: { category: true },
-      orderBy: { name: 'asc' }
+      orderBy: { name: 'asc' },
     });
   }
 
   getById(id: string) {
     return this.prisma.product.findUnique({
       where: { id },
-      include: { category: true }
+      include: { category: true },
     });
   }
 
@@ -44,8 +45,8 @@ export class ProductRepository {
         ...data,
         description: data.description ?? null,
         imageUrl: data.imageUrl ?? null,
-        categoryId: data.categoryId ?? null
-      }
+        categoryId: data.categoryId ?? null,
+      },
     });
   }
 
@@ -62,7 +63,7 @@ export class ProductRepository {
   ) {
     return this.prisma.product.update({
       where: { id },
-      data
+      data,
     });
   }
 

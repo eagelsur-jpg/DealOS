@@ -26,6 +26,7 @@
     "test": "vitest run",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "dev": "tsx watch src/server.ts",
-    "clean": "rm -rf dist"
+    "clean": "rm -rf dist",
+    "start": "node dist/server.js"
   }
 }
