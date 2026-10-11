@@ -29,7 +29,7 @@ Validation commit: 331d62af08f1eca4bad7f0d9c49e070759c18604.
 
 ## Remaining acceptance gates
 
-- Approved real eligible affiliate link and partner configuration are absent; positive affiliate acceptance is blocked.
+- Approved real eligible affiliate link and partner configuration are absent; affiliate acceptance: **BLOCKED ONLY because no reviewed real eligible affiliate link is configured.**
 - Final domains/DNS/HTTPS and authenticated HTTPS browser acceptance await owner decisions.
 - Owner final visual acceptance is outstanding.
 - Database networking and shared-host dependencies require a separate security review before configuration changes.
@@ -43,3 +43,9 @@ Validation commit: 331d62af08f1eca4bad7f0d9c49e070759c18604.
 - [Guarded migration acceptance](https://github.com/eagelsur-jpg/DealOS/actions/runs/38102790651)
 
 Detailed host paths, configuration/security findings, private screenshots and exact operational commands are retained in the private owner-facing audit rather than published here. DealOS is not declared fully finished while external acceptance gates remain.
+
+## Final synchronization
+
+Browser/mobile acceptance: PASS (65 cases, 0 failures). Systemd/runtime stability: PASS (all three services active, NRestarts=0). Migration status: CLEAN; preserved commission reconciliation retained. PostgreSQL exposure remains a documented infrastructure hardening item; no networking change performed.
+
+PR #1 production code is synchronized byte-for-byte with deployed commit 3818277bf2074a5b00ede457568427804a2787c0; only this audit document differs. The evidence collector is restored to the deployed version, while the successful independent browser summary remains in run 38104926708. Merge to main requires this code equality and no failing current checks. No redeployment is required for documentation-only synchronization.

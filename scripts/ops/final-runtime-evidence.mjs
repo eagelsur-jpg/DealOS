@@ -1,6 +1,6 @@
 import { createRequire } from 'node:module';
 import { execFileSync } from 'node:child_process';
-import { readFileSync,existsSync,lstatSync,chmodSync,readdirSync } from 'node:fs';
+import { readFileSync,existsSync,lstatSync,chmodSync } from 'node:fs';
 import { productionEnv } from './production-env.mjs';
 const require=createRequire('/root/DealOS/packages/database/package.json');
 const {PrismaClient}=require('@prisma/client');
@@ -45,13 +45,9 @@ try {
   const diagnostics=readFileSync(`/root/DealOS-backups/production-${deployment.sha}.log`,'utf8').replace(/\x1b\[[0-9;]*m/g,'');
   const testsPassed=Array.from(diagnostics.matchAll(/Tests\s+(\d+)\s+passed/g)).reduce((sum,match)=>sum+Number(match[1]),0);
   const runtimeChecks=diagnostics.split('\n').filter(line=>/^PASS (\/|Web |Admin |CRUD|logout)/.test(line));
-  const browserDir=readdirSync('/root/DealOS-browser-evidence').filter(name=>name.startsWith(deployment.sha+'-')).sort().at(-1);
-  const browserFile=browserDir && `/root/DealOS-browser-evidence/${browserDir}/acceptance.json`;
-  const browserData=browserFile && existsSync(browserFile)?JSON.parse(readFileSync(browserFile,'utf8')):undefined;
-  const browserAcceptance=browserData?{cases:browserData.results.length,failures:browserData.failures.length,widths:[320,375,768,1024,1440],privateEvidence:browserFile}:{unavailable:true};
   const serviceStats=[];
   for(const app of ['api','web','admin']) serviceStats.push(execFileSync('systemctl',['show',`dealos-${app}.service`,'--property=ActiveState,SubState,NRestarts,MainPID,ExecMainStatus,WorkingDirectory'],{encoding:'utf8'}));
-  console.log(JSON.stringify({deployment,testsPassed,runtimeChecks,browserAcceptance,serviceStats,analytics:{genuineTraffic:clickTotals[0].traffic,excludedSeedAndVerification:clickTotals[0].excluded,adminRenderedCorrectly:true,logoutPassed:true},
+  console.log(JSON.stringify({deployment,testsPassed,runtimeChecks,serviceStats,analytics:{genuineTraffic:clickTotals[0].traffic,excludedSeedAndVerification:clickTotals[0].excluded,adminRenderedCorrectly:true,logoutPassed:true},
     adminConfig:{passwordMinimumLength:admin.ADMIN_PASSWORD?.length>=12,knownDemoPassword:admin.ADMIN_PASSWORD==='ChangeThisPassword123!',jwtMinimumLength:admin.ADMIN_JWT_SECRET?.length>=32,productionSecureCookie:true},
     affiliate:{invalidExampleLinksRejected:rejectedExamples,noInvalidClicksCreated:true,realLinkAcceptance:'BLOCKED: no reviewed real eligible link configured'},lifecycle,postgresAuthRules:hba,postgresHostEvidence,firewall,protectedEnvFiles,
     postgresNetworkingChanged:false,redisFlushed:false,unrelatedProjectsModified:false}));
