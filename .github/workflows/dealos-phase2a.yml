@@ -2,7 +2,7 @@ name: DealOS guarded phase2a migration
 on:
   push:
     branches: [codex/dealos-production-audit]
-    paths: ['.github/workflows/dealos-phase2a.yml']
+    paths: ['.github/workflows/dealos-phase2a.yml', 'scripts/ops/migrate-phase2a.mjs']
 permissions:
   contents: read
 concurrency:

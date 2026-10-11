@@ -24,7 +24,7 @@ try {
     assert(entry?.finished_at && !entry.rolled_back_at && entry.checksum === hash(resolve(`packages/database/prisma/migrations/${name}/migration.sql`)), 'Existing migration history mismatch; no deployment allowed');
   }
   assert(history.length === 2, 'Unexpected migration history: inspect before applying');
-  const objects = await db.$queryRawUnsafe(`SELECT to_regclass('public."NewsletterSubscription"') AS newsletter, to_regclass('public."CommissionReconciliation"') AS archive, EXISTS(SELECT 1 FROM pg_type WHERE typname='NewsletterStatus') AS enum_present`);
+  const objects = await db.$queryRawUnsafe(`SELECT to_regclass('public."NewsletterSubscription"')::text AS newsletter, to_regclass('public."CommissionReconciliation"')::text AS archive, EXISTS(SELECT 1 FROM pg_type WHERE typname='NewsletterStatus') AS enum_present`);
   assert(!objects[0].newsletter && !objects[0].archive && !objects[0].enum_present, 'Partial migration effects require owner review');
   const invalid = await db.$queryRawUnsafe('SELECT count(*)::int AS count FROM "Review" WHERE rating<1 OR rating>5');
   assert(invalid[0].count === 0, 'Invalid reviews require owner review');
@@ -72,6 +72,6 @@ try {
   console.log(JSON.stringify({ migrationApplied: true, migrateStatusPassed: true, commissionRowsPreserved: true, commissionAmountsPreserved: true, reconciliationSnapshots: snapshots[0].count, readiness: 200 }));
 } catch (error) {
   // All intentional errors contain only operational instructions, never raw SQL values.
-  console.error(JSON.stringify({ failed: true, type: error.name, code: error.code ?? null }));
+  console.error(JSON.stringify({ failed: true, type: error.name, code: error.code ?? null, sqlState: error.meta?.code ?? null, instruction: error.constructor === Error ? error.message : undefined }));
   process.exitCode = 1;
 } finally { await db.$disconnect(); }
