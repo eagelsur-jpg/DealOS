@@ -37,11 +37,15 @@ try {
   }
   // Real UI interaction at mobile width: open navigation and use the search form.
   await page.setViewportSize({width:375,height:900});
+  await page.goto('http://127.0.0.1:3002/',{waitUntil:'networkidle'});
+  await page.getByRole('button',{name:'Toggle navigation menu'}).click();
+  if(!await page.getByRole('link',{name:'Deals',exact:true}).last().isVisible()) throw new Error('Mobile navigation did not open');
+  await page.screenshot({path:`${output}/navigation-open-375.png`,fullPage:true});
   await page.goto('http://127.0.0.1:3002/search',{waitUntil:'networkidle'});
-  const input=page.locator('input').first();
+  const input=page.getByPlaceholder('Search products, deals, coupons...');
   await input.fill('no-result-dealos-verification');
   await input.press('Enter');
-  await page.waitForTimeout(1000);
+  await page.getByText('No matching deals found',{exact:true}).waitFor({state:'visible',timeout:15000});
   await page.screenshot({path:`${output}/search-no-results-375.png`,fullPage:true});
   console.log(JSON.stringify({browser:'Chromium',results,failures,adminAuthenticatedBrowser:'deferred: Secure cookies require final HTTPS domain',affiliateRealLink:'unavailable: only existing link is expired and example destination'}));
   writeFileSync(`${output}/acceptance.json`,JSON.stringify({results,failures},null,2));
