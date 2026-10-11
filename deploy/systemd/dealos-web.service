@@ -1,0 +1,21 @@
+[Unit]
+Description=DealOS web
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/root/DealOS
+Environment=NODE_ENV=production
+Environment=PATH=/usr/local/bin:/usr/bin:/bin
+EnvironmentFile=/root/DealOS/.env
+ExecStart=/usr/bin/env pnpm --filter @dealos/web start --hostname 127.0.0.1
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=30
+NoNewPrivileges=true
+PrivateTmp=true
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target
