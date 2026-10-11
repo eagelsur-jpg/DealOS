@@ -1,18 +1,16 @@
 [Unit]
-Description=DealOS web
+Description=DealOS web production
 After=network.target
 
 [Service]
 Type=simple
 User=root
-WorkingDirectory=/root/DealOS
-Environment=NODE_ENV=production
-Environment=PATH=/usr/local/bin:/usr/bin:/bin
-EnvironmentFile=/root/DealOS/.env
-ExecStart=/usr/bin/env pnpm --filter @dealos/web start --hostname 127.0.0.1
+WorkingDirectory=/root/DealOS-current/apps/web
+ExecStart=/root/.nvm/versions/node/v22.23.2/bin/node /root/DealOS-current/scripts/ops/start-service.mjs web
 Restart=on-failure
 RestartSec=5
 TimeoutStopSec=30
+KillMode=control-group
 NoNewPrivileges=true
 PrivateTmp=true
 UMask=0077

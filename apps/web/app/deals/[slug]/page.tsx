@@ -24,6 +24,7 @@ import {
   H1,
   MutedText,
 } from '@dealos/ui';
+import { isOfferAvailable } from '@/lib/offer-availability';
 import { AffiliateButton } from '@/components/affiliate-button';
 import { Breadcrumbs } from '@/components/breadcrumbs';
 import { DealCard } from '@/components/deal-card';
@@ -70,6 +71,7 @@ export default async function DealDetailsPage({ params }: DealDetailsPageProps) 
   }
 
   const { deal, priceHistory, relatedDeals } = details;
+  const offerAvailable = isOfferAvailable(deal);
   const discountPercent = calculateSavingsPercent(deal.previousPrice, deal.currentPrice);
   const savingsAmount = deal.previousPrice
     ? Number(deal.previousPrice) - Number(deal.currentPrice)
@@ -79,8 +81,8 @@ export default async function DealDetailsPage({ params }: DealDetailsPageProps) 
     {
       question: `How long is ${deal.title} expected to stay active?`,
       answer: deal.endsAt
-        ? `Based on merchant feed telemetry, this offer is scheduled to expire on ${new Date(deal.endsAt).toLocaleDateString()}.`
-        : 'No explicit expiration date was specified by the merchant feed. Check current availability with the merchant.',
+        ? `According to the saved listing, this offer ends on ${new Date(deal.endsAt).toLocaleDateString()}.`
+        : 'No explicit expiration date is saved for this listing. Check current availability with the merchant.',
     },
     {
       question: 'Is this an authenticated merchant deal?',
@@ -109,44 +111,18 @@ export default async function DealDetailsPage({ params }: DealDetailsPageProps) 
           '@type': 'Product',
           name: deal.product.name,
           description: deal.description ?? deal.title,
-          brand: deal.merchant.name,
           category: deal.product.category?.name,
-          offers: {
+          offers: offerAvailable ? {
             '@type': 'Offer',
             price: deal.currentPrice,
             priceCurrency: deal.currency,
-            availability:
-              deal.status === 'ACTIVE'
-                ? 'https://schema.org/InStock'
-                : 'https://schema.org/OutOfStock',
+            priceValidUntil: deal.endsAt?.toISOString().slice(0, 10),
             seller: {
               '@type': 'Organization',
               name: deal.merchant.name,
             },
             url: absoluteUrl(`/deals/${deal.slug}`),
-          },
-        }}
-      />
-      <JsonLd
-        data={{
-          '@context': 'https://schema.org',
-          '@type': 'Offer',
-          name: deal.title,
-          price: deal.currentPrice,
-          priceCurrency: deal.currency,
-          availability:
-            deal.status === 'ACTIVE'
-              ? 'https://schema.org/InStock'
-              : 'https://schema.org/OutOfStock',
-          itemOffered: {
-            '@type': 'Product',
-            name: deal.product.name,
-          },
-          seller: {
-            '@type': 'Organization',
-            name: deal.merchant.name,
-          },
-          url: absoluteUrl(`/deals/${deal.slug}`),
+          } : undefined,
         }}
       />
       <JsonLd
@@ -178,7 +154,7 @@ export default async function DealDetailsPage({ params }: DealDetailsPageProps) 
           verification.
         </p>
       )}
-      {deal.status !== 'ACTIVE' && (
+      {!offerAvailable && (
         <p className="rounded border p-4">This offer has expired or is unavailable.</p>
       )}
       {/* Main Deal Hero Workspace */}
@@ -317,7 +293,7 @@ export default async function DealDetailsPage({ params }: DealDetailsPageProps) 
             {/* CTA Buttons */}
             <div className="pt-2">
               <AffiliateButton
-                affiliateLinkId={deal.affiliateLinks[0]?.id ?? null}
+                affiliateLinkId={offerAvailable ? (deal.affiliateLinks[0]?.id ?? null) : null}
                 dealSlug={deal.slug}
                 merchantSlug={deal.merchant.slug}
               />

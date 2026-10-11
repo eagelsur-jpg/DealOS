@@ -41,6 +41,7 @@ try {
   run('git',['archive','--format=tar','--output',archive,'HEAD'],process.cwd());
   run('tar',['-xf',archive,'-C',release],process.cwd());
   run('pnpm',['install','--frozen-lockfile','--prod=false'],release);
+  // Lifecycle UI fixes also require a complete live production acceptance cycle.
   // Every production cutover repeats all repository gates before stopping DealOS.
   for (const command of ['typecheck','lint','test','build']) run('pnpm',[command],release);
   // Validate again immediately before cutover; never terminate a shared process group.
