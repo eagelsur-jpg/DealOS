@@ -49,3 +49,7 @@ Detailed host paths, configuration/security findings, private screenshots and ex
 Browser/mobile acceptance: PASS (65 cases, 0 failures). Systemd/runtime stability: PASS (all three services active, NRestarts=0). Migration status: CLEAN; preserved commission reconciliation retained. PostgreSQL exposure remains a documented infrastructure hardening item; no networking change performed.
 
 PR #1 production code is synchronized byte-for-byte with deployed commit 3818277bf2074a5b00ede457568427804a2787c0; only this audit document differs. The evidence collector is restored to the deployed version, while the successful independent browser summary remains in run 38104926708. Merge to main requires this code equality and no failing current checks. No redeployment is required for documentation-only synchronization.
+
+## Main synchronization completed
+
+PR #1 merged successfully from head `4ee0014b5b795eeb836cc6ee626a3d68bd21646b`. Verified main merge SHA: `6bd65e0ef9cb47d2efccffbe0e3e13a208f3d881`. A direct Git comparison confirmed only this audit document differs from deployed SHA `3818277bf2074a5b00ede457568427804a2787c0`; all production code is identical. Synchronization evidence run 38184546743 passed. No redeployment, networking change, database change or unrelated-service change was performed during finalization.
