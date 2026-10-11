@@ -44,6 +44,7 @@ try {
   run('git',['archive','--format=tar','--output',archive,'HEAD'],process.cwd());
   run('tar',['-xf',archive,'-C',release],process.cwd());
   run('pnpm',['install','--frozen-lockfile','--prod=false'],release);
+  // Shared Tailwind source changes also require the browser gate.
   // Lifecycle UI fixes also require a complete live production acceptance cycle.
   // Every production cutover repeats all repository gates before stopping DealOS.
   for (const command of ['typecheck','lint','test','build']) run('pnpm',[command],release);

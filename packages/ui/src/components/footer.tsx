@@ -75,7 +75,7 @@ export const Footer = ({ links, copyright, className, ...props }: FooterProps) =
               { href: '/coupons', label: 'Coupons & Promo Codes' },
               { href: '/clearance', label: 'Clearance Sales' },
               { href: '/categories', label: 'Explore Categories' },
-              { href: '/merchants', label: 'Trusted Merchants' },
+              { href: '/merchants', label: 'Merchants' },
               ...links
             ].map((link) => (
               <a
@@ -106,7 +106,7 @@ export const Footer = ({ links, copyright, className, ...props }: FooterProps) =
                 value={email}
                 required
                 onChange={(event) => setEmail(event.target.value)}
-                className="min-w-0 flex-1 bg-transparent px-4 py-2.5 text-sm outline-none placeholder:text-muted-foreground"
+                className="w-0 min-w-0 flex-1 bg-transparent px-4 py-2.5 text-sm outline-none placeholder:text-muted-foreground"
               />
               <button
                 type="submit"
@@ -130,7 +130,7 @@ export const Footer = ({ links, copyright, className, ...props }: FooterProps) =
           </form>
 
           <p className="text-xs leading-relaxed text-muted-foreground">
-            Affiliate Disclosure: DealOS receives commissions for qualifying purchases made through links on our site at no extra cost to you.
+            Affiliate Disclosure: DealOS may receive commissions for qualifying purchases made through links on our site at no extra cost to you.
           </p>
           <p className="text-xs font-medium text-muted-foreground/80">{copyright}</p>
         </div>

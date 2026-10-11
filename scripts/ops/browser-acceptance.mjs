@@ -28,6 +28,7 @@ try {
       errors.length=0;
       const response=await page.goto(`http://127.0.0.1:3002${path}`,{waitUntil:'networkidle',timeout:30000});
       const dimensions=await page.evaluate(()=>({ viewport:innerWidth, document:document.documentElement.scrollWidth, body:document.body.scrollWidth }));
+      if(path==='/' && width===320) console.log(JSON.stringify(await page.evaluate(()=>{const grid=document.querySelector('footer > div');return {footerGridColumns:getComputedStyle(grid).gridTemplateColumns,footerWidth:grid.getBoundingClientRect().width};})));
       const overflow=Math.max(dimensions.document,dimensions.body)>width+1;
       const result={width,path,status:response.status(),overflow,pageErrors:errors.length};
       results.push(result);
