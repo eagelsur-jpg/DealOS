@@ -1,6 +1,6 @@
 'use client';
 
-import { CheckCircle2, Facebook, Github, Instagram, Linkedin, Mail, ShoppingBag, Sparkles } from 'lucide-react';
+import { CheckCircle2, Mail, ShoppingBag, Sparkles } from 'lucide-react';
 import * as React from 'react';
 import { cn } from '../lib/cn.js';
 import { Container } from './container.js';
@@ -51,7 +51,7 @@ export const Footer = ({ links, copyright, className, ...props }: FooterProps) =
 
   return (
     <footer className={cn('border-t border-border/80 bg-card/60 backdrop-blur-md py-16', className)} {...props}>
-      <Container className="grid gap-10 lg:grid-cols-[1.2fr_0.8fr_1fr]">
+      <Container className="grid grid-cols-1 gap-10 lg:grid-cols-[1.2fr_0.8fr_1fr]">
         <div className="space-y-4">
           <a href="/" className="group inline-flex items-center gap-2 text-xl font-extrabold tracking-tight">
             <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-tr from-teal-600 via-teal-500 to-cyan-500 text-white shadow-md shadow-teal-500/20 transition-transform group-hover:scale-105 dark:from-teal-500 dark:to-cyan-400 dark:text-zinc-950">
@@ -62,27 +62,9 @@ export const Footer = ({ links, copyright, className, ...props }: FooterProps) =
             </span>
           </a>
           <p className="max-w-sm text-sm leading-relaxed text-muted-foreground">
-            Verified deals, coupon intelligence, and merchant transparency for smarter shopping decisions.
+            Browse merchant offers and coupons, with clear availability and affiliate disclosures.
           </p>
-          <div className="flex gap-2.5 pt-2">
-            {[
-              { href: 'https://www.facebook.com/', label: 'Facebook', icon: Facebook },
-              { href: 'https://www.instagram.com/', label: 'Instagram', icon: Instagram },
-              { href: 'https://www.linkedin.com/', label: 'LinkedIn', icon: Linkedin },
-              { href: 'https://github.com/', label: 'GitHub', icon: Github }
-            ].map(({ href, label, icon: Icon }) => (
-              <a
-                key={label}
-                href={href}
-                aria-label={label}
-                className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-border/80 bg-background/80 text-muted-foreground transition-all duration-200 hover:border-teal-500/50 hover:bg-teal-500/10 hover:text-teal-600 dark:hover:text-teal-400 active:scale-95"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                <Icon className="h-4 w-4" />
-              </a>
-            ))}
-          </div>
+
         </div>
 
         <div className="space-y-3">
