@@ -7,6 +7,17 @@ const {PrismaClient}=require('@prisma/client');
 const db=new PrismaClient({datasources:{db:{url:productionEnv('api').DATABASE_URL}},log:[]});
 try {
   const admin=productionEnv('admin');
+  const clickTotals=await db.$queryRawUnsafe(`SELECT count(*) FILTER(WHERE "userAgent" IS NULL OR "userAgent" NOT IN ('seed-script','DealOS-runtime-verification','DealOS-rejected-example-verification'))::int AS traffic,count(*) FILTER(WHERE "userAgent" IN ('seed-script','DealOS-runtime-verification','DealOS-rejected-example-verification'))::int AS excluded FROM "Click"`);
+  const adminUrl='http://127.0.0.1:3003';
+  const origin=admin.ADMIN_ORIGIN ?? adminUrl;
+  const login=await fetch(`${adminUrl}/api/auth/login`,{method:'POST',redirect:'manual',headers:{Origin:origin},body:new URLSearchParams({email:admin.ADMIN_EMAIL,password:admin.ADMIN_PASSWORD})});
+  const cookie=login.headers.get('set-cookie')?.split(';')[0];
+  if(login.status!==303 || !cookie)throw new Error('Final Admin login failed');
+  const analytics=await fetch(`${adminUrl}/analytics`,{headers:{Cookie:cookie}});
+  const plain=(await analytics.text()).replace(/<!--.*?-->/gs,'').replace(/<[^>]+>/g,' ').replace(/\s+/g,' ');
+  if(analytics.status!==200 || !plain.includes(`${clickTotals[0].traffic} recorded clicks across`) || !plain.includes('Known seed and verification clicks are excluded'))throw new Error('Admin analytics differs from genuine traffic evidence');
+  const logout=await fetch(`${adminUrl}/api/auth/logout`,{method:'POST',redirect:'manual',headers:{Cookie:cookie,Origin:origin}});
+  if(logout.status!==303)throw new Error('Final Admin logout failed');
   const links=await db.affiliateLink.findMany({where:{isActive:true},select:{id:true,destinationUrl:true,deal:{select:{endsAt:true}}}});
   let rejectedExamples=0;
   for(const link of links) if(/example/i.test(new URL(link.destinationUrl).pathname)||link.deal?.endsAt<new Date()) {
@@ -16,10 +27,10 @@ try {
     rejectedExamples++;
   }
   let hba;
-  try { hba=await db.$queryRawUnsafe(`SELECT auth_method,count(*)::int AS rules,bool_or(address IN ('0.0.0.0','::')) AS has_any_public_address FROM pg_hba_file_rules WHERE type IN ('host','hostssl','hostnossl') GROUP BY auth_method`); } catch(error) { hba={unavailable:true,sqlState:error.meta?.code}; }
+  try { hba=await db.$queryRawUnsafe(`SELECT auth_method,count(*)::int AS rules,bool_or(address IN ('all','0.0.0.0','::')) AS has_any_public_address FROM pg_hba_file_rules WHERE type IN ('host','hostssl','hostnossl') GROUP BY auth_method`); } catch(error) { hba={unavailable:true,sqlState:error.meta?.code}; }
   let postgresHostEvidence;
   try {
-    const sql=`SELECT json_build_object('publicAddressRules',count(*) FILTER(WHERE address IN ('0.0.0.0','::')),'nonLoopbackHostRules',count(*) FILTER(WHERE address NOT IN ('127.0.0.1','::1')),'publicTrustRules',count(*) FILTER(WHERE address IN ('0.0.0.0','::') AND auth_method='trust'),'passwordMethods',array_agg(DISTINCT auth_method)) FROM pg_hba_file_rules WHERE type IN ('host','hostssl','hostnossl')`;
+    const sql=`SELECT json_build_object('publicAddressRules',count(*) FILTER(WHERE address IN ('all','0.0.0.0','::')),'nonLoopbackHostRules',count(*) FILTER(WHERE address NOT IN ('127.0.0.1','::1')),'publicTrustRules',count(*) FILTER(WHERE address IN ('all','0.0.0.0','::') AND auth_method='trust'),'passwordMethods',array_agg(DISTINCT auth_method),'dealosCatchAllRules',count(*) FILTER(WHERE address IN ('all','0.0.0.0','::') AND ('all'=ANY(database) OR 'dealos'=ANY(database))),'catchAllSharedDatabaseRules',count(*) FILTER(WHERE address IN ('all','0.0.0.0','::') AND 'all'=ANY(database))) FROM pg_hba_file_rules WHERE type IN ('host','hostssl','hostnossl')`;
     postgresHostEvidence=JSON.parse(execFileSync('runuser',['-u','postgres','--','psql','-X','-d','dealos','-t','-A','-c',sql],{encoding:'utf8',stdio:['ignore','pipe','pipe']}).trim());
   } catch { postgresHostEvidence={unavailable:true}; }
   let firewall;
@@ -36,7 +47,7 @@ try {
   const runtimeChecks=diagnostics.split('\n').filter(line=>/^PASS (\/|Web |Admin |CRUD|logout)/.test(line));
   const serviceStats=[];
   for(const app of ['api','web','admin']) serviceStats.push(execFileSync('systemctl',['show',`dealos-${app}.service`,'--property=ActiveState,SubState,NRestarts,MainPID,ExecMainStatus,WorkingDirectory'],{encoding:'utf8'}));
-  console.log(JSON.stringify({deployment,testsPassed,runtimeChecks,serviceStats,
+  console.log(JSON.stringify({deployment,testsPassed,runtimeChecks,serviceStats,analytics:{genuineTraffic:clickTotals[0].traffic,excludedSeedAndVerification:clickTotals[0].excluded,adminRenderedCorrectly:true,logoutPassed:true},
     adminConfig:{passwordMinimumLength:admin.ADMIN_PASSWORD?.length>=12,knownDemoPassword:admin.ADMIN_PASSWORD==='ChangeThisPassword123!',jwtMinimumLength:admin.ADMIN_JWT_SECRET?.length>=32,productionSecureCookie:true},
     affiliate:{invalidExampleLinksRejected:rejectedExamples,noInvalidClicksCreated:true,realLinkAcceptance:'BLOCKED: no reviewed real eligible link configured'},lifecycle,postgresAuthRules:hba,postgresHostEvidence,firewall,protectedEnvFiles,
     postgresNetworkingChanged:false,redisFlushed:false,unrelatedProjectsModified:false}));
