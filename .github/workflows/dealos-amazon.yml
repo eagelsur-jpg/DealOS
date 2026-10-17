@@ -1,0 +1,19 @@
+name: DealOS reviewed Amazon acceptance
+on:
+  push:
+    branches: [codex/amazon-acceptance]
+    paths: ['scripts/ops/amazon-acceptance.mjs','.github/workflows/dealos-amazon.yml']
+permissions:
+  contents: read
+concurrency:
+  group: dealos-vps-operations
+  cancel-in-progress: false
+jobs:
+  acceptance:
+    runs-on: [self-hosted, Linux, X64]
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - run: node scripts/ops/amazon-acceptance.mjs
